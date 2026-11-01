@@ -130,6 +130,32 @@ const val TV_FULL_JS = """
       el = par;
     }
   }
+  // Quảng cáo: khi có nút "Bỏ qua" / "Skip" hiện ra thì bấm sau khoảng 0.5 giây, như người dùng bấm tay
+  var SKIP_RX = /^(bỏ qua|bo qua|skip|skip ad|bỏ qua quảng cáo|skip ads)\s*(>|›|▸)?$/i;
+  var skipTimer = null;
+  function findSkip(){
+    var els = document.querySelectorAll('button,a,div,span,[role=button]');
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i];
+      if (e.children.length > 2) continue;
+      var t = (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t.length > 25 || !SKIP_RX.test(t)) continue;
+      if (e.offsetWidth === 0 || e.offsetHeight === 0) continue;
+      return e;
+    }
+    return null;
+  }
+  function trySkip(){
+    if (skipTimer) return;
+    var b = findSkip();
+    if (!b) return;
+    skipTimer = setTimeout(function(){
+      skipTimer = null;
+      var again = findSkip();
+      if (again) { try { again.click(); } catch(e){} }
+    }, 500);
+  }
+  if (!window.__tvSkipInt) { window.__tvSkipInt = true; setInterval(trySkip, 300); }
   function go(){
     focusVideo();
     var v = document.querySelector('video');
