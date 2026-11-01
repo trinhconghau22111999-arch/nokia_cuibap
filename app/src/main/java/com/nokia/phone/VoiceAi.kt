@@ -13,6 +13,7 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -252,5 +253,31 @@ fun AiScreen(
                 }
             }
         }
+    }
+}
+
+
+/** Bỏ các từ thừa đầu/cuối câu nói khi tìm trong YouTube: "tìm bài Liễu Thanh Yên trên YouTube" -> "bài Liễu Thanh Yên". */
+fun ytCleanQuery(raw: String): String {
+    var q = raw.trim()
+    val head = Regex("^(hãy |làm ơn |cho tôi |giúp tôi |mở |phát |xem |tìm kiếm |tìm |search )+", RegexOption.IGNORE_CASE)
+    val tail = Regex(" (trên|ở|on) (youtube|du tup|you tube)$", RegexOption.IGNORE_CASE)
+    q = q.replace(head, "").replace(tail, "").trim()
+    return q.ifBlank { raw.trim() }
+}
+
+/** Lớp phủ "đang nghe" của nút AI trong YouTube (vẽ đè lên khung YouTube trong ô LCD). */
+@Composable
+fun YtListenOverlay(heard: String, level: Float) {
+    Column(Modifier.fillMaxSize().background(LCD).padding(horizontal = 6.dp), Arrangement.Top, Alignment.CenterHorizontally) {
+        val n = (((level + 2f) / 12f).coerceIn(0f, 1f) * 10f).toInt()
+        Spacer(Modifier.height(16.dp))
+        Text("●  Đang nghe...", color = INK, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+        Spacer(Modifier.height(6.dp))
+        Text("█".repeat(n) + "░".repeat(10 - n), color = INK, fontSize = 18.sp, fontFamily = MONO)
+        Spacer(Modifier.height(10.dp))
+        Text(if (heard.isEmpty()) "Nói tên video cần tìm" else heard,
+            color = INK, fontSize = 18.sp, fontFamily = MONO, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, maxLines = 5, overflow = TextOverflow.Ellipsis)
     }
 }

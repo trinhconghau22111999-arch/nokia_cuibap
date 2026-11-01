@@ -509,6 +509,8 @@ fun Phone() {
     var aiMusicQ by remember { mutableStateOf<String?>(null) }         // bài nhạc chờ phát sau khi danh sách nhạc tải xong ("" = bất kỳ)
     var aiShoot by remember { mutableStateOf(false) }                  // tự chụp sau khi mở máy ảnh bằng giọng nói
     val voice = remember { VoiceInput(ctx) }
+    var ytVoice by remember { mutableIntStateOf(0) }          // nút AI trong YouTube: 1 = đang nghe
+    var ytHeard by remember { mutableStateOf("") }
     var permThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     var permMust by remember { mutableStateOf(listOf<String>()) }
     // Ô tìm kiếm của Danh bạ (dùng chung bộ gõ multi-tap với soạn tin; chỉ tính khi đang ở màn hình Danh bạ)
@@ -585,7 +587,7 @@ fun Phone() {
         if (grp(p) == grp(screen)) return@LaunchedEffect
         when (grp(p)) {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
-            "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull() }
+            "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull() }
             "zaloweb" -> { zwPane?.destroy(); zwPane = null; webHost.hideFull(); webEntry.reset(); webEntry.mode = 0 }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
@@ -1251,7 +1253,7 @@ fun Phone() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
+            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
             "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
             "tv" -> if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
@@ -1388,6 +1390,28 @@ fun Phone() {
             )
         }
     }
+    /** Nút AI trong YouTube: nghe giọng nói rồi CHỈ tìm kiếm bên trong YouTube (không mở app/gọi điện như AI ngoài). */
+    fun ytListen() {
+        if (!voice.available()) { Toast.makeText(ctx, "Máy chưa có dịch vụ nhận dạng giọng nói", Toast.LENGTH_LONG).show(); return }
+        need(listOf(Manifest.permission.RECORD_AUDIO)) {
+            ytVoice = 1; ytHeard = ""; aiLevel = 0f
+            voice.start(
+                onPartial = { ytHeard = it },
+                onLevel = { aiLevel = it },
+                onResult = { list ->
+                    if (ytVoice == 1) {
+                        ytVoice = 0
+                        val heard = list.filter { it.isNotBlank() }
+                        val q = heard.firstNotNullOfOrNull { (AiParser.parse(it) as? AiCmd.YouTube)?.query?.takeIf { x -> x.isNotBlank() } }
+                            ?: heard.firstOrNull()?.let { ytCleanQuery(it) }
+                        if (q.isNullOrBlank()) Toast.makeText(ctx, "Không nghe rõ, bấm AI để thử lại", Toast.LENGTH_SHORT).show()
+                        else ytPane?.search(q)
+                    }
+                },
+                onError = { code -> if (ytVoice == 1) { ytVoice = 0; Toast.makeText(ctx, aiErrorText(code), Toast.LENGTH_LONG).show() } }
+            )
+        }
+    }
     fun aiConfirm() {
         val p = aiCands.getOrNull(aiPick) ?: return
         when (aiKind) {
@@ -1450,6 +1474,15 @@ fun Phone() {
             else if (k == "*" && lockAt != 0L && t - lockAt < 4000) { locked = false; lockAt = 0L }
             else lockAt = 0L
             return
+        }
+        if (screen == "youtube") {
+            if (ytVoice == 1) {   // đang nghe: OK / phím mềm trái = nói xong; phím khác bỏ qua
+                if (k == "OK" || k == "SOFTL") voice.stop()
+                else if (k == "SOFTR") { voice.cancel(); ytVoice = 0 }
+                else if (k == "END") { voice.cancel(); ytVoice = 0; open("home") }
+                return
+            }
+            if (k == "SOFTL") { ytListen(); return }
         }
         if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
             // Gõ chữ vào ô nhập của trang bằng phím số của app: 2-9 bấm lặp = chọn chữ, * = dấu tiếng Việt,
@@ -1694,7 +1727,8 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
-        "youtube", "tv", "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
+        "youtube" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube
+        "tv", "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
@@ -1752,7 +1786,10 @@ fun Phone() {
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll)
-                            "youtube" -> WebArea(ytPane?.view, fullView, false) { back() }
+                            "youtube" -> Box(Modifier.fillMaxSize()) {
+                                WebArea(ytPane?.view, fullView, false) { back() }
+                                if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
+                            }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
                             "tv" -> WebArea(tvPane?.view, fullView) { back() }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
