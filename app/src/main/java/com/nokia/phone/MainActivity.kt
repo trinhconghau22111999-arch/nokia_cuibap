@@ -633,20 +633,20 @@ fun Phone() {
             "alarmEdit", "clock" -> if (grp(screen) != "alarmEdit" && grp(screen) != "clock") editIdx = 0
         }
     }
-    LaunchedEffect(screen) { if (screen == "snake") while (true) { delay(snake.stepMs()); snake.step() } }
+    LaunchedEffect(screen, uiResumed) { if (screen == "snake" && uiResumed) while (true) { delay(snake.stepMs()); snake.step() } }   // tắt màn hình là game dừng
     LaunchedEffect(lockAt) { if (lockAt != 0L) { delay(4000); lockAt = 0L } }
-    LaunchedEffect(screen) { if (screen == "settings") while (true) { btOn = isBtOn(ctx); dialerOn = isDefaultDialer(ctx); smsOn = isDefaultSms(ctx); delay(600) } }
-    LaunchedEffect(screen) { if (screen in INFO_SCREENS) while (true) { infoTick++; delay(1000) } }
+    LaunchedEffect(screen, uiResumed) { if (screen == "settings" && uiResumed) while (true) { btOn = isBtOn(ctx); dialerOn = isDefaultDialer(ctx); smsOn = isDefaultSms(ctx); delay(600) } }
+    LaunchedEffect(screen, uiResumed) { if (screen in INFO_SCREENS && uiResumed) while (true) { infoTick++; delay(1000) } }
     LaunchedEffect(gIdx, gIds, screen) {
         if (screen == "gallery" && gIds.isNotEmpty()) {
             gBmp = null
             gBmp = withContext(Dispatchers.IO) { Gallery.bitmap(ctx, gIds[gIdx.coerceIn(0, gIds.lastIndex)]) }
         }
     }
-    LaunchedEffect(playing, recording, screen) {
-        if (screen == "recorder" || screen == "recording") while (playing != null || recording) { recTick++; delay(250) }
+    LaunchedEffect(playing, recording, screen, uiResumed) {
+        if ((screen == "recorder" || screen == "recording") && uiResumed) while (playing != null || recording) { recTick++; delay(250) }
     }
-    LaunchedEffect(screen) { if (screen == "music") while (true) { mTick++; delay(300) } }
+    LaunchedEffect(screen, uiResumed) { if (screen == "music" && uiResumed) while (true) { mTick++; delay(300) } }
     DisposableEffect(Unit) { onDispose { Music.stop() } }
     DisposableEffect(screen) {
         val s = screen
