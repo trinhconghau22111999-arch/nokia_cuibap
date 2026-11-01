@@ -1527,6 +1527,7 @@ fun Phone() {
                 "LEFT" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT; "RIGHT" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
                 else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
             }
+            if (screen == "youtube" && ytPane?.onKey(k) == true) return     // trang YouTube: ô chọn video ▲▼, OK = mở video
             if (screen == "tv" && tvPane?.onKey(k) == true) return     // trang chọn đài / kênh: ô chọn di chuyển bằng ▲▼◀▶, OK = chọn
             (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web })?.let { v ->
                 v.requestFocus()

@@ -200,6 +200,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(VOICE_HOOK_JS, null)
                     view?.evaluateJavascript(HIDE_OPEN_APP_JS, null)
                     view?.evaluateJavascript(HIDE_TOPBAR_JS, null)
+                    view?.evaluateJavascript(YT_NAV_JS, null)
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
                     view?.evaluateJavascript("window.__wbLock=$touchLock", null)
                 }
@@ -297,6 +298,31 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     private fun pageKey(u: Uri): String {
         val path = u.path ?: ""
         return if (path == "/watch") "watch:" + (u.getQueryParameter("v") ?: "") else u.buildUpon().fragment(null).build().toString()
+    }
+
+    /** ▲▼ đưa ô chọn qua từng video, OK mở video đang có ô chọn. Không có video nào thì trả phím về cho trang như cũ. */
+    fun onKey(k: String): Boolean {
+        if (destroyedYt) return false
+        val js = when (k) {
+            "UP" -> "window.__wbNav&&window.__wbNav(-1)"
+            "DOWN" -> "window.__wbNav&&window.__wbNav(1)"
+            "OK" -> "window.__wbOk&&window.__wbOk()"
+            else -> return false
+        }
+        web.evaluateJavascript(js) { r -> if (r != "true") fallbackKey(k) }
+        return true
+    }
+    private fun fallbackKey(k: String) {
+        val code = when (k) {
+            "UP" -> android.view.KeyEvent.KEYCODE_DPAD_UP
+            "DOWN" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+            "LEFT" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+            "RIGHT" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+            else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
+        }
+        web.requestFocus()
+        web.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+        web.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
     }
 
     fun search(q: String) { web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q)) }

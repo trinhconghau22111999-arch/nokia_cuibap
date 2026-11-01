@@ -170,3 +170,56 @@ const val TV_FULL_JS = """
   }
 })();
 """
+
+/**
+ * YouTube: ô chọn video. ▲▼ đưa khung trắng qua từng video (trang tự cuộn theo), OK mở video đang có khung.
+ * Trả về "true" khi xử lý được; "false" thì app trả phím về cho trang như cũ.
+ */
+const val YT_NAV_JS = """
+(function(){
+ if(window.__wbNavInit) return; window.__wbNavInit=true;
+ var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
+ var cur=null;
+ function vid(a){try{var u=new URL(a.href,location.href);return u.searchParams.get('v')||u.pathname}catch(e){return a.href}}
+ function items(){
+   var out=[],seen={};
+   var as=document.querySelectorAll('a[href*="/watch"],a[href*="/shorts/"]');
+   for(var i=0;i<as.length;i++){
+     var a=as[i];
+     var r=a.getBoundingClientRect(); if(r.width===0||r.height===0) continue;
+     var k=vid(a); if(seen[k]) continue; seen[k]=1;
+     out.push(a.closest(ITEM)||a);
+   }
+   return out;
+ }
+ function mark(el){
+   if(cur && cur!==el){ cur.style.outline=''; cur.style.outlineOffset=''; cur.style.backgroundColor=''; }
+   cur=el;
+   if(el){
+     el.style.outline='4px solid #ffffff'; el.style.outlineOffset='-4px';
+     el.style.backgroundColor='rgba(255,255,255,0.15)';
+     el.scrollIntoView({block:'center',behavior:'smooth'});
+   }
+ }
+ window.__wbNav=function(d){
+   var list=items(); if(!list.length) return false;
+   if(cur && !cur.isConnected) cur=null;
+   var idx=cur?list.indexOf(cur):-1;
+   if(idx<0){
+     idx=0;
+     for(var i=0;i<list.length;i++){var t=list[i].getBoundingClientRect(); if(t.bottom>0 && t.top<innerHeight){idx=i;break;}}
+     mark(list[idx]); return true;
+   }
+   var n=idx+d;
+   if(n<0){ return true; }
+   if(n>=list.length){ window.scrollBy(0, innerHeight*0.6); return true; }
+   mark(list[n]); return true;
+ };
+ window.__wbOk=function(){
+   if(!cur || !cur.isConnected) return false;
+   var a=cur.tagName==='A'?cur:cur.querySelector('a[href*="/watch"],a[href*="/shorts/"]');
+   if(!a) return false;
+   a.click(); return true;
+ };
+})();
+"""
