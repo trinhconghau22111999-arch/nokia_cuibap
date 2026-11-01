@@ -2,7 +2,9 @@ package com.nokia.phone
 
 import android.content.ContentUris
 import android.content.ContentValues
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -16,6 +18,14 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.camera.core.CameraControl
+import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -43,6 +53,8 @@ import java.util.Locale
 
 class CamHolder {
     var capture: ImageCapture? = null
+    var video: VideoCapture<Recorder>? = null   // dùng khi ở chế độ quay video
+    var recording: Recording? = null            // lượt quay đang chạy (nếu có)
     var control: CameraControl? = null
     var hasFlash = false
     var torch = false      // trạng thái đèn flash mong muốn, áp dụng ngay khi camera mở xong
@@ -50,7 +62,7 @@ class CamHolder {
 
 /** Khung xem trước camera nằm gọn trong ô màn hình LCD. */
 @Composable
-fun CameraView(holder: CamHolder, front: Boolean, flash: Boolean) {
+fun CameraView(holder: CamHolder, front: Boolean, flash: Boolean, video: Boolean) {
     val ctx = LocalContext.current
     // COMPATIBLE (TextureView): khung xem trước bị cắt đúng theo ô LCD. Chế độ mặc định (SurfaceView) có thể
     // tràn ra ngoài ô, đè lên cả bàn phím bên dưới khi phóng to để lấp đầy (FILL_CENTER).
@@ -62,7 +74,7 @@ fun CameraView(holder: CamHolder, front: Boolean, flash: Boolean) {
     }
     SideEffect { holder.torch = flash }
     LaunchedEffect(flash) { if (holder.hasFlash) holder.control?.enableTorch(flash) }
-    DisposableEffect(front) {
+    DisposableEffect(front, video) {
         val future = ProcessCameraProvider.getInstance(ctx)
         var provider: ProcessCameraProvider? = null
         var disposed = false
@@ -72,14 +84,18 @@ fun CameraView(holder: CamHolder, front: Boolean, flash: Boolean) {
                 val p = future.get()
                 provider = p
                 val preview = Preview.Builder().build().also { it.setSurfaceProvider(view.surfaceProvider) }
-                val cap = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build()
+                val vc = if (video) VideoCapture.withOutput(
+                    Recorder.Builder().setQualitySelector(
+                        QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
+                    ).build()
+                ) else null
+                val cap = if (!video) ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build() else null
+                val sel = if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
                 p.unbindAll()
-                val camera = p.bindToLifecycle(
-                    ctx as LifecycleOwner,
-                    if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview, cap
-                )
+                val camera = if (vc != null) p.bindToLifecycle(ctx as LifecycleOwner, sel, preview, vc)
+                    else p.bindToLifecycle(ctx as LifecycleOwner, sel, preview, cap!!)
                 holder.capture = cap
+                holder.video = vc
                 holder.control = camera.cameraControl
                 holder.hasFlash = camera.cameraInfo.hasFlashUnit()
                 if (holder.torch && holder.hasFlash) camera.cameraControl.enableTorch(true)
@@ -90,7 +106,10 @@ fun CameraView(holder: CamHolder, front: Boolean, flash: Boolean) {
         onDispose {
             disposed = true
             try { provider?.unbindAll() } catch (_: Exception) {}
+            holder.recording?.stop()
+            holder.recording = null
             holder.capture = null
+            holder.video = null
             holder.control = null
             holder.hasFlash = false
         }
@@ -119,6 +138,32 @@ fun takePhoto(ctx: Context, holder: CamHolder) {
         }
     })
 }
+
+/** Bắt đầu quay video (lưu vào Movies/Nokia, có tiếng nếu đã cấp quyền micro). onState báo đang quay hay đã dừng. */
+fun startVideo(ctx: Context, holder: CamHolder, onState: (Boolean) -> Unit) {
+    val vc = holder.video ?: return
+    val name = "NOKIA_VID_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+    val v = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+        put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/Nokia")
+    }
+    val out = MediaStoreOutputOptions.Builder(ctx.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+        .setContentValues(v).build()
+    var pending = vc.output.prepareRecording(ctx, out)
+    if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+        pending = pending.withAudioEnabled()
+    holder.recording = pending.start(ContextCompat.getMainExecutor(ctx)) { ev ->
+        if (ev is VideoRecordEvent.Finalize) {
+            holder.recording = null
+            onState(false)
+            if (ev.hasError()) Toast.makeText(ctx, "Quay video lỗi", Toast.LENGTH_SHORT).show()
+        }
+    }
+    onState(true)
+}
+
+fun stopVideo(holder: CamHolder) { holder.recording?.stop() }
 
 // ---------------------------------------------------------------- Thư viện ảnh
 

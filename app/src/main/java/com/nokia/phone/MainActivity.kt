@@ -473,6 +473,8 @@ fun Phone() {
     var camFront by remember { mutableStateOf(false) }
     var camOk by remember { mutableStateOf(false) }
     var flash by remember { mutableStateOf(false) }
+    var camVideo by remember { mutableStateOf(false) }   // false = chụp ảnh, true = quay video
+    var camRec by remember { mutableStateOf(false) }     // đang quay video
     var shutterTick by remember { mutableIntStateOf(0) }
     val shut = remember { Animatable(0f) }
     LaunchedEffect(shutterTick) { if (shutterTick > 0) { shut.animateTo(1f, tween(90)); shut.animateTo(0f, tween(160)) } }
@@ -603,8 +605,9 @@ fun Phone() {
             "gallery" -> { gBmp = null; gIds = emptyList(); gIdx = 0; gOk = false; gLoaded = false }
             "wifi" -> wifiNets = emptyList()
             "camera" -> {
+                cam.recording?.stop(); cam.recording = null
                 cam.capture = null; cam.control = null; cam.hasFlash = false; cam.torch = false
-                camOk = false; camFront = false; flash = false
+                camOk = false; camFront = false; flash = false; camVideo = false; camRec = false
             }
             "rec" -> { recs = emptyList(); playing = null }
             "calllog" -> { calls = emptyList(); clLoaded = false }
@@ -1008,6 +1011,7 @@ fun Phone() {
         else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     val camPerms = if (Build.VERSION.SDK_INT < 29) listOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE)
         else listOf(Manifest.permission.CAMERA)
+    val camPermsAll = camPerms + Manifest.permission.RECORD_AUDIO   // quay video cần micro để có tiếng
     val audioPerms = if (Build.VERSION.SDK_INT >= 33) listOf(Manifest.permission.READ_MEDIA_AUDIO)
         else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 
@@ -1239,7 +1243,7 @@ fun Phone() {
                 need(listOf(Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.READ_CONTACTS),
                     listOf(Manifest.permission.READ_SMS)) { loadSms() }
             }
-            "camera" -> { camOk = false; camFront = false; flash = false; need(camPerms) { camOk = true } }
+            "camera" -> { camOk = false; camFront = false; flash = false; camVideo = false; camRec = false; need(camPermsAll) { camOk = true } }
             "gallery" -> {
                 gOk = false; gLoaded = false; gIds = emptyList(); gIdx = 0; gBmp = null
                 need(imgPerms) {
@@ -1612,7 +1616,7 @@ fun Phone() {
                 "alarmEdit", "powerEdit" -> editMove(k)
                 "calc" -> calc.op(if (k == "DOWN") '−' else '÷')
                 "gallery" -> if (gIds.isNotEmpty()) gIdx = minOf(gIdx + 1, gIds.size - 1)
-                "camera" -> if (k == "RIGHT") { camFront = !camFront; flash = false }
+                "camera" -> if (k == "RIGHT") { camFront = !camFront; flash = false } else if (!camRec) camVideo = !camVideo   // ▼ đổi chụp ↔ quay
                 "msgview" -> mv = minOf(mv + 1, size - 1)
                 "compose" -> if (cStage == 0) pickContact(1)
                 else -> sel = minOf(sel + 1, size - 1)
@@ -1681,7 +1685,10 @@ fun Phone() {
                 "compose" -> if (cStage == 0) { if (cTo.isNotEmpty()) cStage = 1 }
                     else if (k == "SOFTL") doSend() else entry.newline()
                 "calc" -> if (k == "OK") calc.compute() else calc.back()
-                "camera" -> if (camOk) { shutterTick++; takePhoto(ctx, cam) }
+                "camera" -> if (camOk) {
+                    if (camVideo) { if (camRec) stopVideo(cam) else startVideo(ctx, cam) { camRec = it } }
+                    else { shutterTick++; takePhoto(ctx, cam) }
+                }
                 "recorder" -> if (sel == 0) startRecording() else togglePlay(sel)
                 "recording" -> stopRecording()
                 "gallery" -> if (k == "SOFTL") askDeletePhoto()     // phím mềm trái = Xóa ảnh
@@ -1752,7 +1759,7 @@ fun Phone() {
         "clock" -> "Sửa"; "calendar" -> "Hôm nay"
         "contacts" -> "Gọi"; "messages", "thread" -> "Chọn"; "msgview" -> "Trả lời"
         "compose" -> if (cStage == 1) "Gửi" else "Tiếp"
-        "calc" -> "Xóa"; "camera" -> "Chụp"; "recording" -> "Lưu"; "recConfirm", "smsConfirm", "galConfirm" -> "Có"
+        "calc" -> "Xóa"; "camera" -> if (camVideo) (if (camRec) "Dừng" else "Quay") else "Chụp"; "recording" -> "Lưu"; "recConfirm", "smsConfirm", "galConfirm" -> "Có"
         "gallery" -> if (gIds.isNotEmpty()) "Xóa" else ""
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
@@ -1945,11 +1952,16 @@ fun Phone() {
                             "compose" -> ComposeView(cStage, cTo, cName, entry)
                             "calc" -> CalcScreen(calc)
                             "camera" -> if (camOk) Box(Modifier.fillMaxSize().clipToBounds()) {
-                                CameraView(cam, camFront, flash)
+                                CameraView(cam, camFront, flash, camVideo)
                                 Box(Modifier.fillMaxSize().clickable { press("OK") })
-                                Text((if (camFront) "Trước" else "Sau") + "  ◀▶ đổi  ▲ flash: " + (if (flash) "BẬT" else "TẮT"),
-                                    Modifier.align(Alignment.TopCenter).background(LCD).padding(horizontal = 6.dp),
-                                    color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                // Thanh trên cùng đủ chiều ngang: chữ dồn bên trái, ký hiệu chế độ ở bên phải
+                                Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(LCD).padding(horizontal = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text((if (camFront) "Trước" else "Sau") + "  ◀▶ đổi  ▲ flash: " + (if (flash) "BẬT" else "TẮT"),
+                                        Modifier.weight(1f),
+                                        color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    CamModeIcon(camVideo, camRec)
+                                }
                                 // Hiệu ứng "đóng khung" khi chụp: 4 cạnh khép vào giữa rồi mở lại
                                 Canvas(Modifier.fillMaxSize()) {
                                     val p = shut.value
@@ -2246,6 +2258,27 @@ fun ColumnScope.Keys(p: (String) -> Unit) {
                     val s = ch.toString()
                     NumKey(s, LETTERS[s] ?: "", Modifier.weight(1f).fillMaxHeight()) { p(s) }
                 }
+            }
+        }
+    }
+}
+
+/** Ký hiệu chế độ máy ảnh (góc phải thanh trên): máy ảnh = chụp, camera = quay video; đang quay có chữ REC đỏ. */
+@Composable
+fun CamModeIcon(video: Boolean, rec: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (rec) Text("● REC ", color = Color(0xFFD32F2F), fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Canvas(Modifier.size(22.dp)) {
+            val w = size.width
+            val h = size.height
+            if (video) {
+                drawRect(INK, Offset(0f, h * 0.2f), Size(w * 0.7f, h * 0.6f))
+                val p = Path().apply { moveTo(w * 0.72f, h * 0.5f); lineTo(w, h * 0.22f); lineTo(w, h * 0.78f); close() }
+                drawPath(p, INK)
+            } else {
+                drawRect(INK, Offset(0f, h * 0.25f), Size(w, h * 0.65f))
+                drawRect(INK, Offset(w * 0.3f, h * 0.12f), Size(w * 0.4f, h * 0.18f))
+                drawCircle(LCD, radius = w * 0.2f, center = Offset(w / 2f, h * 0.57f))
             }
         }
     }

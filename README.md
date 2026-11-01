@@ -26,7 +26,7 @@ Launcher thật mô phỏng điện thoại cục gạch Nokia: thân máy + bà
   - Mã: `WebPanes.kt` (YouTubePane, TvPane), `WebScripts.kt` (JS chặn quảng cáo / phóng video), `WebAi.kt` (nhận tên kênh).
 - **Ghi âm:** nằm ngay dưới Lịch. OK để ghi/dừng và lưu, chọn bản ghi + OK để nghe lại, `#` để xóa
 - **Máy tính:** + − × ÷ = , và ô phép tính lớn ở trên. Phím cứng: số, ▲ cộng, ▼ trừ, ◀ nhân, ▶ chia, OK bằng, `*` dấu phẩy, `#` xóa hết
-- **Máy ảnh:** xem trước ngay trong ô LCD, OK để chụp (ảnh lưu vào Pictures/Nokia), ◀▶ đổi camera trước/sau
+- **Máy ảnh:** xem trước ngay trong ô LCD, ▼ đổi chụp ↔ quay, OK để chụp hoặc bắt đầu/dừng quay (ảnh vào Pictures/Nokia, video vào Movies/Nokia), ◀▶ đổi camera trước/sau
 - **Thư viện:** xem ảnh trong máy, ◀▶ hoặc vuốt ngang để chuyển ảnh. Phím mềm trái **Xóa** xóa ảnh đang xem: Android 11 trở lên hệ thống tự hiện hộp thoại xác nhận, bản cũ hơn thì app hỏi "Xóa ảnh này?" (Có / Không). Ảnh đã xóa khỏi bộ nhớ máy thật, không ẩn
 - **Khóa nhanh:** bấm phím Tắt (đỏ) 2 lần liên tiếp (lần 1 về màn hình chờ, lần 2 khóa màn hình của app, màn hình máy vẫn sáng). Mở khóa: Menu rồi *.
 - Màn hình chờ: bấm số + Gọi để gọi; nút Home về màn hình chờ, Back lùi một cấp
