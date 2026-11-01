@@ -524,6 +524,7 @@ fun Phone() {
     // ---- App con YouTube / TV (tách từ repo TV): WebView nhúng ngay trong ô LCD phía trên
     var ytPane by remember { mutableStateOf<YouTubePane?>(null) }
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
+    var ytFullOff by remember { mutableStateOf(false) }   // đã bấm Về để thoát xem ngang (YouTube)
     var zwPane by remember { mutableStateOf<ZaloPane?>(null) }
     var fullView by remember { mutableStateOf<android.view.View?>(null) }
     var fullCb by remember { mutableStateOf<android.webkit.WebChromeClient.CustomViewCallback?>(null) }
@@ -551,6 +552,17 @@ fun Phone() {
     }
     // YouTube: xoay ngang = tự bấm nút phóng to của video (video vẫn phát tiếp), xoay dọc = thu nhỏ lại
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    fun exitYtLandscape() {
+        ytFullOff = true
+        (ctx as? Activity)?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
+    // Máy đã về dọc sau khi thoát: mở lại xoay theo cảm biến để lần sau xoay ngang vẫn được
+    LaunchedEffect(isLandscape, screen) {
+        if (screen == "youtube" && !isLandscape && ytFullOff) {
+            ytFullOff = false
+            (ctx as? Activity)?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        }
+    }
     LaunchedEffect(isLandscape, ytPane) { ytPane?.setTouchLock(!isLandscape) }   // để dọc: khóa chạm ngoài khung video
     LaunchedEffect(isLandscape, screen, ytPane) {
         if (screen != "youtube") return@LaunchedEffect
@@ -1255,7 +1267,7 @@ fun Phone() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
+            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape && !ytFullOff) exitYtLandscape() else if (ytPane?.back() != true) open("menu")
             "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
             "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
@@ -1817,7 +1829,7 @@ fun Phone() {
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
-                                WebArea(ytPane?.view, fullView) { back() }
+                                WebArea(ytPane?.view, fullView, !ytFullOff) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
                             }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
