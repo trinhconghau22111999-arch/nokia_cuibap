@@ -176,7 +176,10 @@ const val YT_NAV_JS = """
  if(window.__wbNavInit) return; window.__wbNavInit=true;
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" (quét theo chữ, chỉ vài chục giây sau khi video tải để tiết kiệm pin)
  var autonavLeft=0;
- document.addEventListener('loadedmetadata', function(){ autonavLeft=40; }, true);
+ document.addEventListener('loadedmetadata', function(){
+   autonavLeft=40;
+   try{ var mp=document.getElementById('movie_player'); if(mp){ if(mp.setOption) mp.setOption('captions','track',{}); if(mp.unloadModule) mp.unloadModule('captions'); } }catch(e){}
+ }, true);
  setInterval(function(){
    if(autonavLeft<=0) return;
    autonavLeft--;
@@ -194,7 +197,7 @@ const val YT_NAV_JS = """
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';
-   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}.ytp-subtitles-button,.ytp-settings-button,.ytp-fullscreen-button,button[aria-label*="Phụ đề"],button[aria-label*="Cài đặt"],button[aria-label*="Toàn màn hình"],button[aria-label*="Subtitles"],button[aria-label*="Settings"],button[aria-label*="Full screen"],button[aria-label*="Fullscreen"]{display:none!important;pointer-events:none!important}';
    (document.head||document.documentElement).appendChild(stA);
  }
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
