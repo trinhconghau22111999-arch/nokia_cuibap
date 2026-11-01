@@ -1513,7 +1513,7 @@ fun Phone() {
         if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
             // Gõ chữ vào ô nhập của trang bằng phím số của app: 2-9 bấm lặp = chọn chữ, * = dấu tiếng Việt,
             // # = đổi abc/Abc/ABC/123, phím mềm trái = Xóa, phím gọi (xanh) = Enter
-            val web = when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.view }
+            val web = when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web }
             when {
                 k == "SOFTL" -> { WebTyping.type(web, webEntry, "DEL"); return }
                 k == "CALL" -> { WebTyping.enter(web); return }
@@ -1528,7 +1528,7 @@ fun Phone() {
                 else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
             }
             if (screen == "tv" && tvPane?.onKey(k) == true) return     // trang chọn đài / kênh: ô chọn di chuyển bằng ▲▼◀▶, OK = chọn
-            (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.view })?.let { v ->
+            (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web })?.let { v ->
                 v.requestFocus()
                 v.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
                 v.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))

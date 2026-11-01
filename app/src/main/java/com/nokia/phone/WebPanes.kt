@@ -3,6 +3,7 @@ package com.nokia.phone
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
@@ -26,6 +27,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
@@ -572,12 +574,33 @@ private val ZALO_HOSTS = listOf("zalo.me", "zaloapp.com", "zdn.vn", "zadn.vn", "
  * Zalo Web (chat.zalo.me) nhúng trong ô LCD. Giao diện máy tính (UA desktop) vì bản di động của Zalo Web chỉ mời tải app;
  * chụm hai ngón để phóng to/thu nhỏ. Đăng nhập: "Với số điện thoại" rồi xác nhận trong app Zalo trên chính máy này
  * (mã QR cần máy khác để quét). Cookie được giữ nên lần sau không phải đăng nhập lại.
+ * Khi tải trang: hiện vòng quay xoay (không còn màn hình đen). Mức phóng/thu lần cuối người dùng chỉnh được nhớ lại.
  */
 class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
     val web: WebView = NoKeyboardWebView(act)
-    val view: View get() = web
+    /** Khung chứa: trang web + lớp vòng quay khi đang tải. Dùng khung này để hiển thị. */
+    val view: FrameLayout = FrameLayout(act)
+    private val loader = FrameLayout(act)
     private var lastToastAt = 0L
     private var destroyed = false
+
+    private val prefs = act.getSharedPreferences("zalo_web", Context.MODE_PRIVATE)
+    private var savedScale = prefs.getInt("scale", 0)   // % phóng/thu lần cuối người dùng chỉnh; 0 = chưa có
+    private var curScale = 0f                           // tỉ lệ hiện tại do WebView báo
+    private var pinched = false
+
+    private fun dp(v: Int) = (v * act.resources.displayMetrics.density).toInt()
+
+    private val loaderTimeout = Runnable { hideLoader() }
+    private fun showLoader() {
+        loader.visibility = View.VISIBLE
+        loader.removeCallbacks(loaderTimeout)
+        loader.postDelayed(loaderTimeout, 20000)   // đề phòng trang không báo tải xong
+    }
+    private fun hideLoader() {
+        loader.removeCallbacks(loaderTimeout)
+        loader.visibility = View.GONE
+    }
 
     private fun allowedPage(u: Uri): Boolean {
         val scheme = (u.scheme ?: return false).lowercase()
@@ -587,12 +610,50 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
         return ZALO_HOSTS.any { hostIs(h, it) }
     }
 
+    /** Đưa mức phóng đã nhớ về đúng như lần trước (sau khi trang tải xong). */
+    private fun restoreZoom() {
+        if (savedScale <= 0 || curScale <= 0f) return
+        val f = (savedScale / 100f) / curScale
+        if (Math.abs(f - 1f) > 0.02f) web.zoomBy(f.coerceIn(0.01f, 100f))
+    }
+
     init {
         configureWebView(act, web)
         val s = web.settings
         val chrome = Regex("Chrome/[\\d.]+").find(s.userAgentString)?.value ?: "Chrome/120.0.0.0"
         s.userAgentString = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) $chrome Safari/537.36"
         s.setSupportZoom(true); s.builtInZoomControls = true; s.displayZoomControls = false
+        // Không tự co cả trang cho vừa màn hình khi tải (đây là nguyên nhân phóng/thu tự động); mức phóng do người dùng chỉnh
+        s.loadWithOverviewMode = false
+        if (savedScale > 0) web.setInitialScale(savedScale)
+
+        // Vòng quay tải trang, nền xanh nhạt giống trang Zalo (thay cho nền đen khi chưa có nội dung)
+        view.setBackgroundColor(0xFFE8F2FF.toInt())
+        view.addView(web, FrameLayout.LayoutParams(-1, -1))
+        loader.setBackgroundColor(0xFFE8F2FF.toInt())
+        loader.isClickable = true     // chặn chạm xuyên xuống trang khi đang tải
+        val spin = ProgressBar(act).apply {
+            isIndeterminate = true
+            indeterminateTintList = ColorStateList.valueOf(0xFF0068FF.toInt())
+        }
+        loader.addView(spin, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER))
+        view.addView(loader, FrameLayout.LayoutParams(-1, -1))
+
+        // Ghi nhớ mức phóng: khi người dùng chụm hai ngón xong thì lưu lại
+        web.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_POINTER_DOWN -> pinched = true
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (pinched && curScale > 0f) {
+                        savedScale = Math.round(curScale * 100f)
+                        prefs.edit().putInt("scale", savedScale).apply()
+                    }
+                    pinched = false
+                }
+            }
+            false
+        }
+
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val r = request ?: return false
@@ -605,18 +666,36 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
                 }
                 return true
             }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                showLoader()
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                hideLoader()
+                restoreZoom()
+            }
+
+            override fun onScaleChanged(view: WebView?, oldScale: Float, newScale: Float) {
+                curScale = newScale
+            }
+
             // Báo lỗi tải trang (thay vì im lặng hiện trang trắng) để biết nguyên nhân
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 if (request?.isForMainFrame != true || destroyed) return
+                hideLoader()
                 act.runOnUiThread { Toast.makeText(act, "Lỗi tải Zalo Web: ${error?.description}", Toast.LENGTH_LONG).show() }
             }
+
             // Trình duyệt con bị hệ thống tắt (thường do thiếu RAM): trước đây app có thể sập, giờ chỉ báo và cho vào lại
             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                hideLoader()
                 act.runOnUiThread { Toast.makeText(act, "Zalo Web bị đóng do thiếu bộ nhớ, hãy thoát ra rồi vào lại", Toast.LENGTH_LONG).show() }
                 return true
             }
         }
         web.webChromeClient = chromeClient(full)
+        showLoader()
         web.loadUrl("https://chat.zalo.me/")
     }
 
@@ -633,9 +712,10 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
         destroyed = true
         try {
             CookieManager.getInstance().flush()
+            loader.removeCallbacks(loaderTimeout)
             web.stopLoading()
             web.loadUrl("about:blank")
-            (web.parent as? ViewGroup)?.removeView(web)
+            (view.parent as? ViewGroup)?.removeView(view)
             web.postDelayed({ try { web.destroy() } catch (e: Exception) { } }, 500)
         } catch (e: Exception) { }
     }
