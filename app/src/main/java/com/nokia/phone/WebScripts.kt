@@ -115,21 +115,11 @@ const val TV_FULL_JS = """
     st.textContent = 'html,body{overflow:hidden!important;background:#000!important}video{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:2147483647!important;background:#000!important;object-fit:contain!important;transform:none!important}';
     (document.head || document.documentElement).appendChild(st);
   }
-  // Bỏ thanh menu / nút phụ của trang: ẩn mọi phần tử anh em với chuỗi cha của khung video (chỉ giữ video và phần chứa nó)
-  var HIDE_PAGE = 'header,nav,[class*="back-to-top"],[class*="backtotop"],[class*="scroll-top"],[class*="scrollToTop"],[aria-label*="lên đầu" i],[aria-label*="back to top" i],[aria-label*="scroll to top" i]{display:none!important}';
+  // Ẩn thanh menu trên cùng và nút \"lên đầu\" của trang; không ẩn phần nào có chứa video (tránh đen màn)
+  var HIDE_PAGE = 'header:not(:has(video)),nav:not(:has(video)){display:none!important}' +
+    '[class*="back-to-top"],[class*="backtotop"],[class*="scroll-top"],[class*="scrollToTop"],[aria-label*="lên đầu" i],[aria-label*="back to top" i],[aria-label*="scroll to top" i]{display:none!important}';
   var st2 = document.getElementById('__tvHideStyle');
   if (!st2) { st2 = document.createElement('style'); st2.id = '__tvHideStyle'; st2.textContent = HIDE_PAGE; (document.head || document.documentElement).appendChild(st2); }
-  function focusVideo(){
-    var el = document.querySelector('video');
-    while (el && el.parentElement && el !== document.body) {
-      var par = el.parentElement;
-      for (var i = 0; i < par.children.length; i++) {
-        var c = par.children[i];
-        if (c !== el && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && c.tagName !== 'LINK') c.style.setProperty('display', 'none', 'important');
-      }
-      el = par;
-    }
-  }
   // Quảng cáo: khi có nút "Bỏ qua" / "Skip" hiện ra thì bấm sau khoảng 0.5 giây, như người dùng bấm tay
   var SKIP_RX = /^(bỏ qua|bo qua|skip|skip ad|bỏ qua quảng cáo|skip ads)\s*(>|›|▸)?$/i;
   var skipTimer = null;
@@ -157,7 +147,6 @@ const val TV_FULL_JS = """
   }
   if (!window.__tvSkipInt) { window.__tvSkipInt = true; setInterval(trySkip, 300); }
   function go(){
-    focusVideo();
     var v = document.querySelector('video');
     if (v) { try { v.muted = false; var p = v.play(); if (p && p.catch) p.catch(function(){}); } catch(e){} }
   }
