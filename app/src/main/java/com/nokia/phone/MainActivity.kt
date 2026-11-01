@@ -90,6 +90,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -553,6 +554,9 @@ fun Phone() {
     }
     // YouTube: xoay ngang = tự bấm nút phóng to của video (video vẫn phát tiếp), xoay dọc = thu nhỏ lại
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    // Xem ngang YouTube / TV: video phủ kín toàn màn hình (che cả bàn phím), không dùng hộp Dialog nữa
+    val ytLandOverlay = isLandscape && !inSplit.value && fullView == null && screen == "youtube"
+    val tvLandOverlay = isLandscape && !inSplit.value && fullView == null && screen == "tv"
     LaunchedEffect(isLandscape, ytPane) { ytPane?.setTouchLock(!isLandscape) }   // để dọc: khóa chạm ngoài khung video
     LaunchedEffect(isLandscape, screen, ytPane) {
         if (screen != "youtube") return@LaunchedEffect
@@ -1839,12 +1843,12 @@ fun Phone() {
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
-                                WebArea(ytPane?.view, fullView) { back() }
+                                WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
                             }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
                             "tv" -> Box(Modifier.fillMaxSize()) {
-                                WebArea(tvPane?.view, fullView) { back() }
+                                WebArea(if (tvLandOverlay) null else tvPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói tên kênh tivi")
                             }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
@@ -2117,6 +2121,8 @@ fun Phone() {
                 Keys { k -> pressNow.value(k) }
             }
         }
+        if (ytLandOverlay) FullScreenPane(ytPane?.view)
+        if (tvLandOverlay) FullScreenPane(tvPane?.view)
     }
 }
 
@@ -2297,4 +2303,11 @@ fun CamModeIcon(video: Boolean, rec: Boolean) {
             }
         }
     }
+}
+
+/** Lớp toàn màn hình (xem ngang): nền đen, phủ kín cả bàn phím và thanh trên. */
+@Composable
+fun BoxScope.FullScreenPane(pane: View?) {
+    if (pane == null) return
+    Box(Modifier.matchParentSize().background(Color.Black).zIndex(10f)) { HostView(pane) }
 }

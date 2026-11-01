@@ -28,7 +28,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 private fun detach(v: View) { (v.parent as? ViewGroup)?.removeView(v) }
 
 @Composable
-private fun HostView(v: View) {
+fun HostView(v: View) {
     key(v) { AndroidView(factory = { detach(v); v }, modifier = Modifier.fillMaxSize()) }
 }
 

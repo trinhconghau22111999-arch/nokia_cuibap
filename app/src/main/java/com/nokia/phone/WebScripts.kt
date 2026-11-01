@@ -194,7 +194,8 @@ const val YT_NAV_JS = """
    if(el){
      el.style.outline='4px solid #ffffff'; el.style.outlineOffset='-4px';
      el.style.backgroundColor='rgba(255,255,255,0.15)';
-     el.scrollIntoView({block:'center',behavior:'smooth'});
+     el.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});
+     if(window.scrollX) window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
    }
  }
  window.__wbNav=function(d){
