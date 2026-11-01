@@ -415,6 +415,44 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         return true
     }
 
+    // ---- Lớp đếm ngược 3 2 1 che lúc kênh đang tải; đếm xong thì bỏ lớp, âm thanh không bị ảnh hưởng ----
+    private var cover: TextView? = null
+    private var coverTick: Runnable? = null
+    private val coverHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun startCover() {
+        stopCover()
+        val t = TextView(act).apply {
+            setBackgroundColor(Color.BLACK)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            textSize = 96f
+            typeface = Typeface.DEFAULT_BOLD
+            isClickable = true      // chặn chạm xuyên xuống khi đang đếm
+            text = "3"
+        }
+        view.addView(t, FrameLayout.LayoutParams(-1, -1))
+        cover = t
+        var step = 0
+        lateinit var next: Runnable
+        next = Runnable {
+            step++
+            if (step < 3) {
+                t.text = (3 - step).toString()
+                coverHandler.postDelayed(next, 1000)
+            } else stopCover()
+        }
+        coverTick = next
+        coverHandler.postDelayed(next, 1000)
+    }
+
+    private fun stopCover() {
+        coverTick?.let { coverHandler.removeCallbacks(it) }
+        coverTick = null
+        cover?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        cover = null
+    }
+
     init {
         view.setBackgroundColor(Color.BLACK)
         view.addView(chooser, FrameLayout.LayoutParams(-1, -1))
@@ -512,11 +550,13 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         w.webChromeClient = chromeClient(full)
         view.addView(w, FrameLayout.LayoutParams(-1, -1))
         player = w
+        startCover()          // lớp đếm 3 2 1 phủ lên lúc kênh đang tải
         w.loadUrl(url)
     }
 
     private fun stopPlayer() {
         full.setBarVisible(true)
+        stopCover()
         val w = player ?: return
         player = null
         try {
