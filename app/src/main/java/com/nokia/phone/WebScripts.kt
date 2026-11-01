@@ -197,9 +197,23 @@ const val YT_NAV_JS = """
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';
-   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}.ytp-subtitles-button,.ytp-settings-button,.ytp-fullscreen-button,button[aria-label*="Phụ đề"],button[aria-label*="Cài đặt"],button[aria-label*="Toàn màn hình"],button[aria-label*="Subtitles"],button[aria-label*="Settings"],button[aria-label*="Full screen"],button[aria-label*="Fullscreen"],button.fullscreen-icon,.fullscreen-icon,button[aria-label*="full screen" i],button[aria-label*="fullscreen" i],button[aria-label*="toàn màn hình" i],button[aria-label*="phóng to" i],button[aria-label*="thu nhỏ" i],button[aria-label*="minimize" i],button[aria-label*="miniplayer" i],button[aria-label*="trình phát thu nhỏ" i],.ytp-miniplayer-button,.player-control-minimize,.collapse-button{display:none!important;pointer-events:none!important;visibility:hidden!important}';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}.ytp-subtitles-button,.ytp-settings-button,.ytp-fullscreen-button,button[aria-label*="Phụ đề"],button[aria-label*="Cài đặt"],button[aria-label*="Toàn màn hình"],button[aria-label*="Subtitles"],button[aria-label*="Settings"],button[aria-label*="Full screen"],button[aria-label*="Fullscreen"],button.fullscreen-icon,.fullscreen-icon,button[aria-label*="full screen" i],button[aria-label*="fullscreen" i],button[aria-label*="toàn màn hình" i],button[aria-label*="phóng to" i],button[aria-label*="thu nhỏ" i],button[aria-label*="minimize" i],button[aria-label*="miniplayer" i],button[aria-label*="trình phát thu nhỏ" i],.ytp-miniplayer-button,.player-control-minimize,.collapse-button,ytm-closed-captioning-button,[class*="closed-caption" i],[class*="captions-button" i],[class*="subtitles-button" i],button[aria-label*="phụ đề" i],button[aria-label*="subtitle" i],button[aria-label*="caption" i],button[aria-label*="CC" i],.ytp-caption-window-container,.ytp-caption-segment,.caption-window{display:none!important;pointer-events:none!important;visibility:hidden!important}';
    (document.head||document.documentElement).appendChild(stA);
  }
+ // Ẩn thông báo nổi "Đã tắt/bật phụ đề"
+ try{
+   var capRe=/^(Đã (tắt|bật) phụ đề|Captions? (on|off)|Subtitles? (on|off))/i;
+   new MutationObserver(function(ms){
+     for(var i=0;i<ms.length;i++){
+       var ns=ms[i].addedNodes;
+       for(var j=0;j<ns.length;j++){
+         var n=ns[j]; if(n.nodeType!==1) continue;
+         var t=(n.textContent||'').trim();
+         if(t.length<60 && capRe.test(t)) n.style.setProperty('display','none','important');
+       }
+     }
+   }).observe(document.documentElement,{childList:true,subtree:true});
+ }catch(e){}
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
  var cur=null;
  function vid(a){try{var u=new URL(a.href,location.href);return u.searchParams.get('v')||u.pathname}catch(e){return a.href}}
