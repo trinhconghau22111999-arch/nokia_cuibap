@@ -538,6 +538,13 @@ fun Phone() {
         val web = (screen == "youtube" || screen == "tv" || screen == "zaloweb") && !inSplit.value
         (ctx as? Activity)?.requestedOrientation =
             if (web) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        // Zalo Web / YouTube / TV: cấm tuyệt đối bàn phím ảo của máy (ẩn ngay nếu đang hiện, và không cho tự bật)
+        (ctx as? Activity)?.window?.let { w ->
+            if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
+                w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+                WindowInsetsControllerCompat(w, w.decorView).hide(WindowInsetsCompat.Type.ime())
+            } else w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_UNSPECIFIED)
+        }
     }
     DisposableEffect(Unit) {
         val owner = ctx as? androidx.lifecycle.LifecycleOwner

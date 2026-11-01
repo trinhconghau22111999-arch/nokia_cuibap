@@ -2,12 +2,15 @@ package com.nokia.phone
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -30,6 +33,15 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+
+/**
+ * WebView KHÔNG BAO GIỜ nhận kết nối bàn phím: không phải ô nhập chữ và không tạo InputConnection
+ * -> bàn phím ảo của máy không thể bật lên ở YouTube / TV / Zalo Web (dù chạm vào ô nhập chữ của trang).
+ */
+class NoKeyboardWebView(ctx: Context) : WebView(ctx) {
+    override fun onCheckIsTextEditor(): Boolean = false
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? = null
+}
 
 /** Cho phép khung video toàn màn hình (nằm dưới thanh menu). */
 interface FullscreenHost {
@@ -104,7 +116,7 @@ private fun chromeClient(full: FullscreenHost) = object : WebChromeClient() {
 
 /** YouTube cũ (chỉ youtube.com, chặn quảng cáo, tìm bằng giọng nói) nhúng làm một khung dưới thanh menu. */
 class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
-    val web: WebView = WebView(act)
+    val web: WebView = NoKeyboardWebView(act)
     val view: View get() = web
     private var lastToastAt = 0L
 
@@ -294,7 +306,7 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         level = 2
         curUrl = url
         chooser.visibility = View.GONE
-        val w = WebView(act)
+        val w = NoKeyboardWebView(act)
         configureWebView(act, w)
         w.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -404,7 +416,7 @@ private val ZALO_HOSTS = listOf("zalo.me", "zaloapp.com", "zdn.vn", "zadn.vn", "
  * (mã QR cần máy khác để quét). Cookie được giữ nên lần sau không phải đăng nhập lại.
  */
 class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
-    val web: WebView = WebView(act)
+    val web: WebView = NoKeyboardWebView(act)
     val view: View get() = web
     private var lastToastAt = 0L
     private var destroyed = false

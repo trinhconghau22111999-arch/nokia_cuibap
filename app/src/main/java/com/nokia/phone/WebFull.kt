@@ -45,6 +45,7 @@ private fun FullDialog(content: View, onClose: () -> Unit) {
             w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             w.setBackgroundDrawable(ColorDrawable(AColor.BLACK))
             w.setDimAmount(0f)
+            w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
             w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= 28) {
                 val lp = w.attributes
