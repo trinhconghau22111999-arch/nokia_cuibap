@@ -27,6 +27,8 @@ sealed class AiCmd {
     data class Torch(val on: Boolean) : AiCmd()
     data class Bluetooth(val on: Boolean) : AiCmd()
     data class SetAlarm(val h: Int, val m: Int) : AiCmd()
+    /** Xóa toàn bộ báo thức đã đặt ("xóa tất cả báo thức", "xóa hết báo thức"). */
+    object ClearAlarms : AiCmd()
     object Lock : AiCmd()
     object Time : AiCmd()
     object Date : AiCmd()
@@ -181,6 +183,11 @@ object AiParser {
             }
             return AiCmd.Call(words.subList(start, e).joinToString(" "), number)
         }
+
+        // ---- Xóa toàn bộ báo thức: "xóa tất cả báo thức", "xóa hết báo thức", "hủy toàn bộ báo thức"
+        if (has("bao thuc") && hasTok("xoa", "huy", "go", "clear") &&
+            (has("tat ca", "toan bo", "het", "moi", "all") || hasTok("het", "all")))
+            return AiCmd.ClearAlarms
 
         // ---- Báo thức
         if (has("bao thuc", "dat chuong", "danh thuc", "hen gio", "nhac toi")) return parseAlarm(n, now)

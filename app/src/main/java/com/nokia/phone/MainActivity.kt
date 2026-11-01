@@ -1390,6 +1390,13 @@ fun Phone() {
                 aiFinish("Đã đặt báo thức %02d:%02d (sau %s%d phút)".format(c.h, c.m, if (min >= 60) "${min / 60} giờ " else "", min % 60))
                 if (Build.VERSION.SDK_INT < 33 || granted(Manifest.permission.POST_NOTIFICATIONS)) askIgnoreBatteryOnce(ctx)
             }
+            is AiCmd.ClearAlarms -> {
+                val n = alarms.size
+                alarms = emptyList()
+                AlarmStore.save(ctx, emptyList())
+                AlarmStore.schedule(ctx, emptyList())     // hủy luôn lịch đã hẹn với hệ thống
+                aiFinish(if (n > 0) "Đã xóa tất cả $n báo thức" else "Không có báo thức nào để xóa")
+            }
             is AiCmd.Lock -> { open("home"); locked = true; lockAt = 0L }
             is AiCmd.Time -> { val cal = Calendar.getInstance(); aiFinish("Bây giờ là ${cal.get(Calendar.HOUR_OF_DAY)} giờ ${cal.get(Calendar.MINUTE)} phút") }
             is AiCmd.Date -> aiFinish("Hôm nay là " + dateNow())

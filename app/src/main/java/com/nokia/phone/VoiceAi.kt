@@ -213,6 +213,7 @@ val AI_TIPS = listOf(
     "Phát nhạc của Sơn Tùng",
     "Đặt báo thức 6 giờ 30",
     "Đặt báo thức sau 20 phút",
+    "Xóa tất cả báo thức / xóa hết báo thức",
     "Mở Zalo / mở Facebook",
     "Mở TV / xem kênh HTV9 / đài Cà Mau",
     "Điều khiển tivi / mở điều khiển tivi",
