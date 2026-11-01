@@ -16,7 +16,7 @@ sealed class AiCmd {
     object Gallery : AiCmd()
     /** query đã bỏ dấu; "" = phát một bài bất kỳ. */
     data class Music(val query: String) : AiCmd()
-    /** id màn hình trong app: calllog, contacts, messages, music, clock, calendar, recorder, calc, snake, zaloweb, tv, youtube, settings, wifi, apps, home */
+    /** id màn hình trong app: calllog, contacts, messages, music, clock, calendar, recorder, calc, snake, tv, youtube, settings, wifi, apps, home */
     data class Open(val id: String) : AiCmd()
     data class OpenApp(val name: String) : AiCmd()
     /** Mở YouTube và tìm / phát bài này (query giữ nguyên dấu để gõ vào ô tìm). */
@@ -69,7 +69,6 @@ object AiParser {
         listOf("dong ho", "bao thuc") to "clock",
         listOf("lich", "am lich", "lich thang") to "calendar",
         listOf("nhac", "may nghe nhac", "trinh phat nhac") to "music",
-        listOf("zalo web", "web zalo", "zalo chat", "chat zalo", "zalo") to "zaloweb",
         listOf("youtube", "you tube", "du tup") to "youtube",
         listOf("truyen hinh") to "tv",
         listOf("cai dat") to "settings",

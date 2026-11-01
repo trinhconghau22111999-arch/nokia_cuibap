@@ -113,10 +113,10 @@ val KEYTXT = Color(0xFF1B2230)
 val MONO = FontFamily.Monospace
 
 val MENU = listOf(
-    "Nhật ký" to "calllog", "Danh bạ" to "contacts", "Tin nhắn" to "messages",
+    "Nhật ký" to "calllog", "Danh bạ" to "contacts", "TV" to "tv", "YouTube" to "youtube", "Tin nhắn" to "messages",
     "Máy ảnh" to "camera", "Thư viện" to "gallery", "Nhạc" to "music",
     "Đồng hồ" to "clock", "Lịch" to "calendar", "Ghi âm" to "recorder",
-    "Máy tính" to "calc", "Rắn săn mồi" to "snake", "Zalo Web" to "zaloweb", "TV" to "tv", "YouTube" to "youtube",
+    "Máy tính" to "calc", "Rắn săn mồi" to "snake",
     "Cài đặt" to "settings"
 )
 val LETTERS = mapOf("2" to "ABC", "3" to "DEF", "4" to "GHI", "5" to "JKL",
@@ -528,7 +528,6 @@ fun Phone() {
     // ---- App con YouTube / TV (tách từ repo TV): WebView nhúng ngay trong ô LCD phía trên
     var ytPane by remember { mutableStateOf<YouTubePane?>(null) }
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
-    var zwPane by remember { mutableStateOf<ZaloPane?>(null) }
     var fullView by remember { mutableStateOf<android.view.View?>(null) }
     var fullCb by remember { mutableStateOf<android.webkit.WebChromeClient.CustomViewCallback?>(null) }
     var webQuery by remember { mutableStateOf("") }      // từ khóa AI chờ đưa vào app con vừa mở
@@ -542,12 +541,12 @@ fun Phone() {
     }
     // Chỉ khi đang ở TV / YouTube mới cho xoay ngang (xoay ngang = tự full màn); màn khác giữ dọc như Nokia thật
     LaunchedEffect(screen, inSplit.value) {
-        val web = (screen == "youtube" || screen == "tv" || screen == "zaloweb") && !inSplit.value
+        val web = (screen == "youtube" || screen == "tv") && !inSplit.value
         (ctx as? Activity)?.requestedOrientation =
             if (web) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         // Zalo Web / YouTube / TV: cấm tuyệt đối bàn phím ảo của máy (ẩn ngay nếu đang hiện, và không cho tự bật)
         (ctx as? Activity)?.window?.let { w ->
-            if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
+            if (screen == "youtube" || screen == "tv") {
                 w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
                 WindowInsetsControllerCompat(w, w.decorView).hide(WindowInsetsCompat.Type.ime())
             } else w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_UNSPECIFIED)
@@ -570,11 +569,11 @@ fun Phone() {
     DisposableEffect(Unit) {
         val owner = ctx as? androidx.lifecycle.LifecycleOwner
         val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
-            if (e == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) { ytPane?.onPause(); tvPane?.onPause(); zwPane?.onPause() }
-            else if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) { ytPane?.onResume(); tvPane?.onResume(); zwPane?.onResume() }
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) { ytPane?.onPause(); tvPane?.onPause() }
+            else if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) { ytPane?.onResume(); tvPane?.onResume() }
         }
         owner?.lifecycle?.addObserver(obs)
-        onDispose { owner?.lifecycle?.removeObserver(obs); ytPane?.destroy(); tvPane?.destroy(); zwPane?.destroy() }
+        onDispose { owner?.lifecycle?.removeObserver(obs); ytPane?.destroy(); tvPane?.destroy() }
     }
     val focus = remember { FocusRequester() }
     val haptic = LocalHapticFeedback.current
@@ -613,7 +612,6 @@ fun Phone() {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
             "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
-            "zaloweb" -> { zwPane?.destroy(); zwPane = null; webHost.hideFull(); webEntry.reset(); webEntry.mode = 0 }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
             "sms" -> {
                 smsAll = emptyList(); threads = emptyList(); threadMsgs = emptyList()
@@ -1229,11 +1227,6 @@ fun Phone() {
                 val a = ctx as? Activity
                 if (a != null) { val p = YouTubePane(a, webHost); ytPane = p; if (webQuery.isNotEmpty()) { p.search(webQuery); webQuery = "" } }
             }
-            "zaloweb" -> {
-                zwPane?.destroy()
-                val a = ctx as? Activity
-                if (a != null) zwPane = ZaloPane(a, webHost)
-            }
             "tv" -> {
                 tvPane?.destroy()
                 val a = ctx as? Activity
@@ -1280,7 +1273,6 @@ fun Phone() {
             "home" -> {}
             "menu" -> open("home")
             "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (ytPane?.back() != true) open("menu")
-            "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
             "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
@@ -1311,7 +1303,7 @@ fun Phone() {
     }
     fun aiOpen(id: String) {
         when (id) {
-            "youtube", "tv", "zaloweb" -> open(id)      // mở ngay trong ô LCD
+            "youtube", "tv" -> open(id)      // mở ngay trong ô LCD
             else -> open(id)
         }
     }
@@ -1536,18 +1528,18 @@ fun Phone() {
             }
             if (k == "SOFTL") { if (screen == "youtube") ytListen() else tvListen(); return }
         }
-        if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
+        if (screen == "youtube" || screen == "tv") {
             // Gõ chữ vào ô nhập của trang bằng phím số của app: 2-9 bấm lặp = chọn chữ, * = dấu tiếng Việt,
             // # = đổi abc/Abc/ABC/123, phím mềm trái = Xóa, phím gọi (xanh) = Enter
-            val web = when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web }
+            val web = when (screen) { "youtube" -> ytPane?.view; else -> tvPane?.view }
             when {
-                k == "SOFTL" -> { if (screen == "zaloweb") open("menu") else WebTyping.type(web, webEntry, "DEL"); return }   // Zalo Web: Menu = về menu app
+                k == "SOFTL" -> { WebTyping.type(web, webEntry, "DEL"); return }
                 k == "CALL" -> { WebTyping.enter(web); return }
                 k == "#" -> { webEntry.key("#", SystemClock.uptimeMillis()); Toast.makeText(ctx, MODES[webEntry.mode], Toast.LENGTH_SHORT).show(); return }
                 k.length == 1 && (k[0].isDigit() || k == "*") -> { WebTyping.type(web, webEntry, k); return }
             }
         }
-        if ((screen == "youtube" || screen == "tv" || screen == "zaloweb") && (k == "UP" || k == "DOWN" || k == "LEFT" || k == "RIGHT" || k == "OK")) {
+        if ((screen == "youtube" || screen == "tv") && (k == "UP" || k == "DOWN" || k == "LEFT" || k == "RIGHT" || k == "OK")) {
             val code = when (k) {
                 "UP" -> android.view.KeyEvent.KEYCODE_DPAD_UP; "DOWN" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
                 "LEFT" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT; "RIGHT" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
@@ -1555,7 +1547,7 @@ fun Phone() {
             }
             if (screen == "youtube" && ytPane?.onKey(k) == true) return     // trang YouTube: ô chọn video ▲▼, OK = mở video
             if (screen == "tv" && tvPane?.onKey(k) == true) return     // trang chọn đài / kênh: ô chọn di chuyển bằng ▲▼◀▶, OK = chọn
-            (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web })?.let { v ->
+            (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> tvPane?.view })?.let { v ->
                 v.requestFocus()
                 v.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
                 v.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
@@ -1785,7 +1777,6 @@ fun Phone() {
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
         "youtube", "tv" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
-        "zaloweb" -> ""       // không còn phím Xóa: bấm Menu để về màn hình chọn app
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
@@ -1830,8 +1821,8 @@ fun Phone() {
                 Column(Modifier.fillMaxSize().background(LCD).statusBarsPadding()) {
                     Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { lcdRect = it.boundsInWindow() }
                         // Camera: khung xem trước phủ kín vùng LCD, không chừa rìa hai bên
-                        .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "zaloweb") 0.dp else 6.dp,
-                            vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "zaloweb") 0.dp else 2.dp)) {
+                        .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv") 0.dp else 6.dp,
+                            vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv") 0.dp else 2.dp)) {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1847,7 +1838,6 @@ fun Phone() {
                                 WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
                             }
-                            "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
                             "tv" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (tvLandOverlay) null else tvPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói tên kênh tivi")
