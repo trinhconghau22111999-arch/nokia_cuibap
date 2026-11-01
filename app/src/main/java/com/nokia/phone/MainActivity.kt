@@ -1976,9 +1976,9 @@ fun Phone() {
                                 // Thanh trên cùng đủ chiều ngang: chữ dồn bên trái, ký hiệu chế độ ở bên phải
                                 Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(LCD).padding(horizontal = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically) {
-                                    Text((if (camFront) "Trước" else "Sau") + "  ◀▶ đổi  ▲ flash: " + (if (flash) "BẬT" else "TẮT"),
+                                    Text((if (camFront) "Trước" else "Sau") + "  ◀▶ đổi  ▲ flash: " + (if (flash) "BẬT" else "TẮT") + "  ▼ chụp/quay",
                                         Modifier.weight(1f),
-                                        color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
                                     CamModeIcon(camVideo, camRec)
                                 }
                                 // Hiệu ứng "đóng khung" khi chụp: 4 cạnh khép vào giữa rồi mở lại
