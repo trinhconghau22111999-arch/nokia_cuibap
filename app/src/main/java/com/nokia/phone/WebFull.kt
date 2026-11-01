@@ -43,7 +43,12 @@ private fun FullDialog(content: View, onClose: () -> Unit) {
         SideEffect {
             val w = (host.parent as? DialogWindowProvider)?.window ?: return@SideEffect
             w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            w.setGravity(android.view.Gravity.FILL)
             w.setBackgroundDrawable(ColorDrawable(AColor.BLACK))
+            // Nền đen cho cả khung cửa sổ, không để lộ phần giao diện app bên dưới ở các mép
+            w.decorView.setBackgroundColor(AColor.BLACK)
+            w.decorView.setPadding(0, 0, 0, 0)
+            w.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
             w.setDimAmount(0f)
             w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
             w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
