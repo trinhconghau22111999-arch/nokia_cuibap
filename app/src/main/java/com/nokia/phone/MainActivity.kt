@@ -135,28 +135,30 @@ class Snake {
     var food by mutableStateOf(8 to 3)
     var dead by mutableStateOf(false)
     var score by mutableIntStateOf(0)
-    fun reset() { body = listOf(5 to 7, 4 to 7, 3 to 7); dir = 1 to 0; dead = false; score = 0 }
+    private var lastDir = 1 to 0   // hướng của bước đã thực hiện gần nhất (để chặn quay đầu 180° khi bấm nhanh)
+    fun reset() { body = listOf(5 to 7, 4 to 7, 3 to 7); dir = 1 to 0; lastDir = 1 to 0; dead = false; score = 0 }
     /**
-     * Thời gian giữa hai bước (ms). Nhanh dần ĐỀU theo từng mồi (mỗi mồi ~1,6%), không đứng yên trong cấp:
-     * cấp 1-10, 11-20, 21-30... đều tăng tốc dần; qua mỗi mốc 10 mồi tổng cộng nhanh hơn 15%. Thấp nhất 50ms.
-     * Lúc vừa vào chơi (0 mồi) rắn chỉ bò bằng 20% tốc độ bình thường (bước dài gấp 5 lần),
-     * rồi nhanh dần đều và đạt tốc độ bình thường khi ăn đủ 10 mồi.
+     * Thời gian giữa hai bước (ms). MỘT đường cong duy nhất, nhanh dần đều theo từng mồi (~4,3%/mồi),
+     * không có bước nhảy ở bất kỳ cấp nào: 850ms lúc đầu -> ~550ms (10 mồi) -> ~230ms (30 mồi)
+     * -> ~95ms (50 mồi) -> chạm mức nhanh nhất 60ms ở khoảng 60 mồi.
      */
-    fun stepMs(): Long {
-        val normal = maxOf(50.0, 170 * Math.pow(0.85, score / 10.0))
-        val slow = if (score < 10) 5.0 - 0.4 * score else 1.0
-        return (normal * slow).toLong()
-    }
-    fun turn(d: Pair<Int, Int>) { if (d.first != -dir.first || d.second != -dir.second) dir = d }
+    fun stepMs(): Long = maxOf(60.0, 850.0 * Math.pow(0.9568, score.toDouble())).toLong()
+    // Chỉ cấm quay ngược so với hướng của bước ĐÃ chạy, không phải hướng vừa bấm (bấm 2 phím nhanh trong 1 bước không còn tự cắn mình)
+    fun turn(d: Pair<Int, Int>) { if (d.first != -lastDir.first || d.second != -lastDir.second) dir = d }
     fun step() {
         if (dead) return
         val hd = body[0]
         val n = ((hd.first + dir.first + w) % w) to ((hd.second + dir.second + h) % h)
-        if (n in body) { dead = true; return }
-        if (n == food) {
+        lastDir = dir
+        val grow = n == food
+        // Đuôi sẽ rời đi trong bước này (trừ khi ăn mồi) nên đầu được phép vào ô đuôi
+        if (n in (if (grow) body else body.dropLast(1))) { dead = true; return }
+        if (grow) {
             score++
             body = listOf(n) + body
-            food = (0 until w).random() to (0 until h).random()
+            var f: Pair<Int, Int>
+            do { f = (0 until w).random() to (0 until h).random() } while (f in body)
+            food = f
         } else body = listOf(n) + body.dropLast(1)
     }
 }
@@ -1943,8 +1945,9 @@ fun Phone() {
                                 }
                             }
                             "snake" -> Column(Modifier.fillMaxSize()) {
-                                Text(if (snake.dead) "Thua! Điểm: ${snake.score}" else "Điểm: ${snake.score}   Cấp: ${snake.score / 10 + 1}",
-                                    color = INK, fontFamily = MONO, fontSize = 12.sp)
+                                // 1 dòng cố định: trước đây từ cấp 10 chữ dài thêm 1 ký tự -> xuống dòng -> bàn chơi bị co lại
+                                Text(if (snake.dead) "Thua! Điểm: ${snake.score}" else "Điểm:${snake.score} Cấp:${snake.score / 10 + 1}",
+                                    color = INK, fontFamily = MONO, fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                                 Canvas(Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) {
                                     detectTapGestures { o ->
                                         if (snake.dead) snake.reset() else {
@@ -1958,6 +1961,7 @@ fun Phone() {
                                     val c = minOf(size.width / snake.w, size.height / snake.h)
                                     val ox = (size.width - c * snake.w) / 2f
                                     val oy = (size.height - c * snake.h) / 2f
+                                    drawRect(INK, Offset(ox, oy), Size(c * snake.w, c * snake.h), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
                                     snake.body.forEach { (x, y) -> drawRect(INK, Offset(ox + x * c, oy + y * c), Size(c - 2, c - 2)) }
                                     drawRect(INK, Offset(ox + snake.food.first * c + c / 4, oy + snake.food.second * c + c / 4), Size(c / 2, c / 2))
                                 }
