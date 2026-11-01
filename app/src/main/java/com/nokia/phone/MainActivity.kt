@@ -1515,7 +1515,7 @@ fun Phone() {
             // # = đổi abc/Abc/ABC/123, phím mềm trái = Xóa, phím gọi (xanh) = Enter
             val web = when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.web }
             when {
-                k == "SOFTL" -> { WebTyping.type(web, webEntry, "DEL"); return }
+                k == "SOFTL" -> { if (screen == "zaloweb") open("menu") else WebTyping.type(web, webEntry, "DEL"); return }   // Zalo Web: Menu = về menu app
                 k == "CALL" -> { WebTyping.enter(web); return }
                 k == "#" -> { webEntry.key("#", SystemClock.uptimeMillis()); Toast.makeText(ctx, MODES[webEntry.mode], Toast.LENGTH_SHORT).show(); return }
                 k.length == 1 && (k[0].isDigit() || k == "*") -> { WebTyping.type(web, webEntry, k); return }
@@ -1756,7 +1756,7 @@ fun Phone() {
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
         "youtube", "tv" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
-        "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
+        "zaloweb" -> ""       // không còn phím Xóa: bấm Menu để về màn hình chọn app
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
