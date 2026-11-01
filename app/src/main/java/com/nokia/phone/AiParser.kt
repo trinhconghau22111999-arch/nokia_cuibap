@@ -16,7 +16,7 @@ sealed class AiCmd {
     object Gallery : AiCmd()
     /** query đã bỏ dấu; "" = phát một bài bất kỳ. */
     data class Music(val query: String) : AiCmd()
-    /** id màn hình trong app: calllog, contacts, messages, music, clock, calendar, recorder, calc, snake, tv, youtube, settings, wifi, apps, home */
+    /** id màn hình trong app: calllog, contacts, messages, music, clock, calendar, recorder, calc, snake, tv, remote, youtube, settings, wifi, apps, home */
     data class Open(val id: String) : AiCmd()
     data class OpenApp(val name: String) : AiCmd()
     /** Mở YouTube và tìm / phát bài này (query giữ nguyên dấu để gõ vào ô tìm). */
@@ -192,6 +192,14 @@ object AiParser {
             val selfie = has("selfie", "tu suong", "camera truoc", "may anh truoc", "chup minh", "chup toi")
             val shoot = has("chup", "selfie", "tu suong")
             return AiCmd.Camera(selfie, shoot)
+        }
+
+        // ---- Điều khiển TV (remote qua WebRTC): "điều khiển tivi", "mở điều khiển TV", "remote tivi" -> màn hình remote (KHÔNG phải app TV xem kênh)
+        val remoteAt = has("dieu khien") || has("remote")
+        if (remoteAt) {
+            val tvWord = n.any { it == "tv" || it == "tivi" || it == "ti" || it == "vi" || it == "tele" }
+            val rest = n.filter { it !in TV_SKIP && it != "dieu" && it != "khien" && it != "remote" }
+            if (tvWord || rest.isEmpty()) return AiCmd.Open("remote")
         }
 
         // ---- YouTube kèm tên bài / từ khóa: "mở YouTube mở bài Liễu Thanh Yên" -> tìm trên YouTube (không phải nhạc trong máy)

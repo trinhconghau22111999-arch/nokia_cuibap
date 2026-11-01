@@ -102,6 +102,7 @@ class VoiceInput(private val ctx: Context) {
         val r = try { SpeechRecognizer.createSpeechRecognizer(ctx) } catch (_: Throwable) { null }
         if (r == null) { onError(SpeechRecognizer.ERROR_CLIENT); return }
         rec = r
+        var lastPartial = ""
         val fail = onError   // đặt tên khác để không lẫn với RecognitionListener.onError bên dưới
         curFail = fail
         r.setRecognitionListener(object : RecognitionListener {
@@ -112,6 +113,12 @@ class VoiceInput(private val ctx: Context) {
             override fun onEndOfSpeech() {}
             override fun onError(error: Int) {
                 disarmSilence()
+                // Một số máy báo lỗi (vd mã 5) ngay sau khi đã nghe được câu nói (do dừng nghe lúc im lặng): dùng luôn câu đã nghe
+                if (lastPartial.isNotBlank() && (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_NO_MATCH ||
+                        error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT || error == SpeechRecognizer.ERROR_AUDIO)) {
+                    val t = lastPartial; lastPartial = ""
+                    onResult(listOf(t)); return
+                }
                 val netErr = error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ||
                     error == SpeechRecognizer.ERROR_SERVER
                 val busyErr = error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == ERR_SERVER_DISCONNECTED
@@ -133,6 +140,7 @@ class VoiceInput(private val ctx: Context) {
             }
             override fun onPartialResults(partialResults: Bundle?) {
                 partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let {
+                    lastPartial = it
                     onPartial(it)
                     handler.removeCallbacks(startTimeout)
                     armSilence()       // còn đang nói (chữ vẫn thay đổi) -> đếm lại 2 giây
@@ -207,6 +215,7 @@ val AI_TIPS = listOf(
     "Đặt báo thức sau 20 phút",
     "Mở Zalo / mở Facebook",
     "Mở TV / xem kênh HTV9 / đài Cà Mau",
+    "Điều khiển tivi / mở điều khiển tivi",
     "Mở YouTube / xem video Sơn Tùng",
     "Mở danh bạ / tin nhắn / lịch",
     "Bật đèn pin / tăng âm lượng",
