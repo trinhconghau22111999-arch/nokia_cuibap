@@ -221,31 +221,35 @@ const val YT_NAV_JS = """
 """
 
 /**
- * YouTube: đặt chất lượng video mặc định 480p (large). Không có 480p thì hạ xuống 360p, rồi 240p.
- * Áp dụng một lần cho mỗi video; người dùng vẫn đổi được trong menu của YouTube.
+ * YouTube: đặt chất lượng 480p (large) cho MỖI video, đúng một lần khi video bắt đầu tải.
+ * Không có 480p thì dùng 360p (medium), rồi 240p (small). Không kiểm tra liên tục.
  */
 const val YT_QUALITY_JS = """
 (function(){
  if(window.__wbQualInit) return; window.__wbQualInit=true;
  var TARGETS=['large','medium','small'];
- var doneId=null;
- function vidId(){ try{ return new URL(location.href).searchParams.get('v') || location.pathname; }catch(e){ return location.href; } }
- function player(){ return document.getElementById('movie_player') || document.querySelector('.html5-video-player'); }
- function apply(){
-   var id=vidId(); if(id===doneId) return;
-   var p=player(); if(!p) return;
-   if(p.classList && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'))) return;
-   var v=document.querySelector('video'); if(!v || v.readyState<1) return;
+ function apply(p){
    var levels=[]; try{ levels=(p.getAvailableQualityLevels && p.getAvailableQualityLevels()) || []; }catch(e){}
+   if(levels.length===0) return false;
    var pick=null;
-   for(var i=0;i<TARGETS.length;i++){ if(levels.length===0 || levels.indexOf(TARGETS[i])!==-1){ pick=TARGETS[i]; break; } }
-   if(!pick) return;
+   for(var i=0;i<TARGETS.length;i++){ if(levels.indexOf(TARGETS[i])!==-1){ pick=TARGETS[i]; break; } }
+   if(!pick) return true;
    try{
      if(p.setPlaybackQualityRange) p.setPlaybackQualityRange(pick,pick);
      if(p.setPlaybackQuality) p.setPlaybackQuality(pick);
-     doneId=id;
    }catch(e){}
+   return true;
  }
- setInterval(apply,1000);
+ document.addEventListener('loadedmetadata', function(e){
+   var v=e.target; if(!v || v.tagName!=='VIDEO') return;
+   var p=document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+   if(!p) return;
+   var tries=0;
+   var iv=setInterval(function(){
+     tries++;
+     if(p.classList && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'))){ clearInterval(iv); return; }
+     if(apply(p) || tries>=6) clearInterval(iv);
+   }, 500);
+ }, true);
 })();
 """
