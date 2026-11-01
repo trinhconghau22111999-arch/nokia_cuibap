@@ -85,7 +85,7 @@ class RemotePanel(
 
     private fun labeled(btn: View, label: String) = LinearLayout(context).apply {
         orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-        addView(btn, LayoutParams(dp(46), dp(46)))
+        addView(btn, LayoutParams(dp(50), dp(50)))
         addView(caption(label, 8.5f), LayoutParams(-2, -2).also { it.topMargin = dp(1) })
     }
 
@@ -138,7 +138,7 @@ class RemotePanel(
         screenBox = labeled(btnScreen, "TẮT\nMÀN HÌNH")
         touchBox = labeled(btnTouch, "TẮT CẢM\nỨNG TV")
         val top = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
-        for (b in listOf(screenBox, labeled(btnMic, "GIỌNG\nNÓI"), touchBox, labeled(btnFull, "PHÓNG TO\nMÀN HÌNH"))) {
+        for (b in listOf(screenBox, touchBox, labeled(btnFull, "PHÓNG TO\nMÀN HÌNH"), labeled(btnMic, "GIỌNG\nNÓI"))) {
             top.addView(b, LayoutParams(0, -2, 1f))
         }
         addView(top, LayoutParams(-1, -2).also { it.topMargin = dp(5) })
@@ -154,15 +154,15 @@ class RemotePanel(
         mid.addView(sliders, LayoutParams(0, -1, 1f))
 
         val side = LinearLayout(context).apply { orientation = VERTICAL }
-        val btnBack = textButton("LÙI", 16f) { send(JSONObject().put("action", "back")) }
-        side.addView(btnBack, LayoutParams(-1, 0, 1.2f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
+        val btnBack = textButton("LÙI", 13f) { send(JSONObject().put("action", "back")) }
+        side.addView(btnBack, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val q = LinearLayout(context).apply { orientation = HORIZONTAL }
         btnQ360 = qualityButton(360); btnQ480 = qualityButton(480); btnQ720 = qualityButton(720)
         q.addView(btnQ360, LayoutParams(0, -1, 1f).also { it.rightMargin = dp(3) })
         q.addView(btnQ480, LayoutParams(0, -1, 1f).also { it.leftMargin = dp(3); it.rightMargin = dp(3) })
         q.addView(btnQ720, LayoutParams(0, -1, 1f).also { it.leftMargin = dp(3) })
         side.addView(q, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
-        val btnNext = textButton("BÀI TIẾP", 12f) { send(JSONObject().put("action", "media").put("cmd", "next")) }
+        val btnNext = textButton("BÀI TIẾP", 13f) { send(JSONObject().put("action", "media").put("cmd", "next")) }
         side.addView(btnNext, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         mid.addView(side, LayoutParams(0, -1, 1.7f).also { it.leftMargin = dp(6) })
         addView(mid, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2) })
@@ -176,7 +176,7 @@ class RemotePanel(
         }
         val mediaBtns = listOf(mediaBtn(IconButton.REW, "rew"), mediaBtn(IconButton.PLAY, "playpause"), mediaBtn(IconButton.FWD, "fwd"))
         for ((i, b) in mediaBtns.withIndex()) {
-            media.addView(b, LayoutParams(0, dp(52), 1f).also {
+            media.addView(b, LayoutParams(0, dp(50), 1f).also {
                 if (i > 0) it.leftMargin = dp(3); if (i < mediaBtns.size - 1) it.rightMargin = dp(3)
             })
         }
@@ -207,7 +207,7 @@ class RemotePanel(
     }
 
     private fun qualityButton(q: Int) = TextView(context).apply {
-        text = "${q}p"; textSize = 12.5f; gravity = Gravity.CENTER; letterSpacing = 0.04f
+        text = "${q}p"; textSize = 13f; gravity = Gravity.CENTER; letterSpacing = 0.04f
         typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
         setOnClickListener {
             Haptics.tick(this)
