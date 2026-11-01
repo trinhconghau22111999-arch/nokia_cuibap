@@ -174,6 +174,12 @@ const val TV_FULL_JS = """
 const val YT_NAV_JS = """
 (function(){
  if(window.__wbNavInit) return; window.__wbNavInit=true;
+ // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
+ if(!document.getElementById('__wbNoAutonav')){
+   var stA=document.createElement('style'); stA.id='__wbNoAutonav';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"]{display:none!important}';
+   (document.head||document.documentElement).appendChild(stA);
+ }
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
  var cur=null;
  function vid(a){try{var u=new URL(a.href,location.href);return u.searchParams.get('v')||u.pathname}catch(e){return a.href}}
