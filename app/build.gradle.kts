@@ -8,7 +8,7 @@ android {
     namespace = "com.nokia.phone"
     compileSdk = 34
     defaultConfig {
-        applicationId = "phone.noki.nguoigia"
+        applicationId = "phone.noki.nguoigia2"
         minSdk = 24
         targetSdk = 34
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 2)

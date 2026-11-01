@@ -44,5 +44,5 @@ jobs:
           exit $code
       - uses: actions/upload-artifact@v4
         with:
-          name: phonecuibap-apk
+          name: phonecuibap2-apk
           path: app/build/outputs/apk/release/*.apk
