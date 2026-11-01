@@ -1602,7 +1602,7 @@ fun Phone() {
                 else -> sel = maxOf(sel - 1, 0)
             }
             "DOWN", "RIGHT" -> when (screen) {
-                "home" -> shortcut(if (k == "DOWN") "calc" else "music")       // ▼ Máy tính, ▶ Nhạc
+                "home" -> shortcut(if (k == "DOWN") "calc" else "camera")      // ▼ Máy tính, ▶ Máy ảnh
                 "music" -> if (k == "RIGHT") musicStep(1) else sel = minOf(sel + 1, size - 1)
                 "snake" -> snake.turn(if (k == "DOWN") 0 to 1 else 1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "DOWN") APP_COLS else 1) else sel = minOf(sel + 1, size - 1)
