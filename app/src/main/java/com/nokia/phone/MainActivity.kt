@@ -549,6 +549,7 @@ fun Phone() {
     }
     // YouTube: xoay ngang = tự bấm nút phóng to của video (video vẫn phát tiếp), xoay dọc = thu nhỏ lại
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    LaunchedEffect(isLandscape, ytPane) { ytPane?.setTouchLock(!isLandscape) }   // để dọc: khóa chạm ngoài khung video
     LaunchedEffect(isLandscape, screen, ytPane) {
         if (screen != "youtube") return@LaunchedEffect
         val p = ytPane ?: return@LaunchedEffect

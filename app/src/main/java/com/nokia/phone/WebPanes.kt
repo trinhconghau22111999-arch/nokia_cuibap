@@ -196,11 +196,44 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript("window.__wbAdSkip=true;" + YT_ONLY_AD_JS, null)
                     view?.evaluateJavascript(VOICE_HOOK_JS, null)
                     view?.evaluateJavascript(HIDE_OPEN_APP_JS, null)
+                    view?.evaluateJavascript(TOUCH_LOCK_JS, null)
+                    view?.evaluateJavascript("window.__wbLock=$touchLock", null)
                 }
             }
         }
         web.webChromeClient = chromeClient(trackedFull)
         web.loadUrl(YT_HOME)
+    }
+
+    // ---- Máy để dọc + đang ở trang xem video: chỉ cho chạm vào khung video hoặc chọn video khác ----
+    @Volatile private var touchLock = true
+    private val TOUCH_LOCK_JS = """
+(function(){
+ if(window.__wbLockInit)return; window.__wbLockInit=true;
+ var PLAYER='#player,#player-container-id,#movie_player,.html5-video-player,ytm-player,.player-container,ytm-custom-control,video,[class*="ytp-"],ytm-shorts-player,ytm-reel-player-renderer';
+ var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytm-playlist-panel-video-renderer';
+ var NOT='a[href^="/@"],a[href^="/channel"],a[href^="/c/"],a[href^="/user"],button,ytm-menu,ytm-menu-renderer,yt-icon-button';
+ function active(){if(!window.__wbLock)return false;var p=location.pathname;return p.indexOf('/watch')===0||p.indexOf('/shorts')===0}
+ function ok(t){
+  if(!t||!t.closest)return true;
+  if(t.closest(PLAYER))return true;
+  var a=t.closest('a[href]');
+  if(a){try{var pa=new URL(a.href,location.href).pathname;if(pa.indexOf('/watch')===0||pa.indexOf('/shorts/')===0)return true}catch(e){}return false}
+  var it=t.closest(ITEM);if(it&&!t.closest(NOT))return true;
+  return false}
+ function block(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}
+ var sx=0,sy=0,mv=false;
+ addEventListener('touchstart',function(e){var c=e.touches[0];if(c){sx=c.clientX;sy=c.clientY}mv=false},true);
+ addEventListener('touchmove',function(e){var c=e.touches[0];if(c&&(Math.abs(c.clientX-sx)>10||Math.abs(c.clientY-sy)>10))mv=true},{capture:true,passive:true});
+ addEventListener('touchend',function(e){if(active()&&!mv&&!ok(e.target))block(e)},{capture:true,passive:false});
+ addEventListener('click',function(e){if(active()&&!ok(e.target))block(e)},true);
+})();
+""".trimIndent()
+
+    /** on = true khi máy để dọc. Cuộn trang vẫn được; chỉ chặn chạm vào like, bình luận, kênh, nút... */
+    fun setTouchLock(on: Boolean) {
+        touchLock = on
+        if (!destroyedYt) web.evaluateJavascript("window.__wbLock=$on", null)
     }
 
     // ---- Xoay ngang = tự bấm nút phóng to của YouTube, video vẫn tiếp tục phát; xoay dọc = thu nhỏ lại ----
