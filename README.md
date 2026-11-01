@@ -25,7 +25,7 @@ Launcher thật mô phỏng điện thoại cục gạch Nokia: thân máy + bà
   - Mã: `WebPanes.kt` (YouTubePane, TvPane), `WebScripts.kt` (JS chặn quảng cáo / phóng video), `WebAi.kt` (nhận tên kênh).
 - **Điều khiển TV (app con, tách từ repo DK_TV):** nằm ngay dưới YouTube, giao diện **remote gọn trong ô LCD phía trên** (không còn chuột cảm ứng). Mở app con là tự kết nối tới app TV (mã cố định `123456`, tín hiệu qua Firebase + WebRTC, cùng Wi-Fi), rời app con là ngắt. Chấm xanh/đỏ góc trên = đã/chưa kết nối.
   - 4 nút tròn: tắt/mở màn hình TV · giọng nói ("mở TV", "mở YouTube", tên video/kênh) · tắt cảm ứng TV · phóng to.
-  - **4 nút mũi tên trái / phải / lên / xuống** (giữ để lặp) + nút LÙI, chất lượng 360p/720p, BÀI TIẾP; 2 thanh trượt âm lượng và độ sáng; hàng media (lùi 10s, phát/dừng, tới 10s).
+  - **nút LÙI, chất lượng 360p/480p/720p, BÀI TIẾP; 2 thanh trượt dọc âm lượng và độ sáng; hàng media (lùi 10s, phát/dừng, tới 10s).
   - Phím cứng ▲▼◀▶ và OK của thân máy Nokia cũng gửi thẳng phím tương ứng sang TV; phím mềm trái = giọng nói; Về = ra Menu.
   - Mã: thư mục `tvremote/` (`RemotePanel.kt` giao diện, `RemoteLinkService.kt` kết nối + cấu hình Firebase, `RemotePane.kt` gắn vào LCD, `webrtc/` kênh dữ liệu). Cấu hình Firebase nạp thẳng trong code nên không cần `google-services.json`.
 - **Ghi âm:** nằm ngay dưới Lịch. OK để ghi/dừng và lưu, chọn bản ghi + OK để nghe lại, `#` để xóa

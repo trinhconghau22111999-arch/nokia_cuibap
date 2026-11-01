@@ -52,6 +52,7 @@ class RemotePanel(
     private lateinit var btnTouch: IconButton
     private lateinit var touchBox: LinearLayout
     private lateinit var btnQ360: TextView
+    private lateinit var btnQ480: TextView
     private lateinit var btnQ720: TextView
 
     private var tvScreenOn = true
@@ -143,37 +144,29 @@ class RemotePanel(
         addView(top, LayoutParams(-1, -2).also { it.topMargin = dp(5) })
         refreshScreenButton(); refreshTouchButton()
 
-        // ---- Khu giữa: cụm 4 mũi tên (trái) | LÙI + chất lượng + BÀI TIẾP (phải)
-        val mid = LinearLayout(context).apply { orientation = HORIZONTAL; minimumHeight = dp(96) }
+        // ---- Khu giữa: 2 thanh trượt DỌC (âm lượng, độ sáng) sát phải | LÙI + chất lượng + BÀI TIẾP
+        val mid = LinearLayout(context).apply { orientation = HORIZONTAL; minimumHeight = dp(110) }
 
-        val cross = LinearLayout(context).apply { orientation = VERTICAL }
-        fun cell(v: View?) = (v ?: View(context))
-        fun crossRow(l: View?, m: View?, r: View?) = LinearLayout(context).apply {
-            orientation = HORIZONTAL
-            for (v in listOf(l, m, r)) addView(cell(v), LayoutParams(0, -1, 1f).also { p -> p.setMargins(dp(3), dp(3), dp(3), dp(3)) })
-        }
-        cross.addView(crossRow(null, arrow(IconButton.UP, "up"), null), LayoutParams(-1, 0, 1f))
-        cross.addView(crossRow(arrow(IconButton.LEFT, "left"), null, arrow(IconButton.RIGHT, "right")), LayoutParams(-1, 0, 1f))
-        cross.addView(crossRow(null, arrow(IconButton.DOWN, "down"), null), LayoutParams(-1, 0, 1f))
-        mid.addView(cross, LayoutParams(0, -1, 1.15f))
+        val sliders = LinearLayout(context).apply { orientation = HORIZONTAL }
+        sliders.addView(View(context), LayoutParams(0, -1, 0.5f))   // chừa trống bên trái để 2 thanh dồn sát phải
+        sliders.addView(vSlider("ÂM LƯỢNG", "volume", 50), LayoutParams(0, -1, 1f).also { it.rightMargin = dp(9) })
+        sliders.addView(vSlider("ĐỘ SÁNG", "brightness", 70), LayoutParams(0, -1, 1f).also { it.leftMargin = dp(9) })
+        mid.addView(sliders, LayoutParams(0, -1, 1f))
 
         val side = LinearLayout(context).apply { orientation = VERTICAL }
         val btnBack = textButton("LÙI", 16f) { send(JSONObject().put("action", "back")) }
         side.addView(btnBack, LayoutParams(-1, 0, 1.2f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val q = LinearLayout(context).apply { orientation = HORIZONTAL }
-        btnQ360 = qualityButton(360); btnQ720 = qualityButton(720)
+        btnQ360 = qualityButton(360); btnQ480 = qualityButton(480); btnQ720 = qualityButton(720)
         q.addView(btnQ360, LayoutParams(0, -1, 1f).also { it.rightMargin = dp(3) })
+        q.addView(btnQ480, LayoutParams(0, -1, 1f).also { it.leftMargin = dp(3); it.rightMargin = dp(3) })
         q.addView(btnQ720, LayoutParams(0, -1, 1f).also { it.leftMargin = dp(3) })
         side.addView(q, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val btnNext = textButton("BÀI TIẾP", 12f) { send(JSONObject().put("action", "media").put("cmd", "next")) }
         side.addView(btnNext, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
-        mid.addView(side, LayoutParams(0, -1, 1f).also { it.leftMargin = dp(6) })
+        mid.addView(side, LayoutParams(0, -1, 1.7f).also { it.leftMargin = dp(6) })
         addView(mid, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2) })
         refreshQuality()
-
-        // ---- 2 thanh trượt: âm lượng, độ sáng
-        addView(sliderRow("ÂM LƯỢNG", "volume", 50), LayoutParams(-1, dp(27)).also { it.topMargin = dp(2) })
-        addView(sliderRow("ĐỘ SÁNG", "brightness", 70), LayoutParams(-1, dp(27)))
 
         // ---- Hàng media: lùi 10s | phát/dừng | tới 10s
         val media = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
@@ -183,83 +176,34 @@ class RemotePanel(
         }
         val mediaBtns = listOf(mediaBtn(IconButton.REW, "rew"), mediaBtn(IconButton.PLAY, "playpause"), mediaBtn(IconButton.FWD, "fwd"))
         for ((i, b) in mediaBtns.withIndex()) {
-            media.addView(b, LayoutParams(0, dp(38), 1f).also {
+            media.addView(b, LayoutParams(0, dp(52), 1f).also {
                 if (i > 0) it.leftMargin = dp(3); if (i < mediaBtns.size - 1) it.rightMargin = dp(3)
             })
         }
         addView(media, LayoutParams(-1, -2).also { it.topMargin = dp(3) })
     }
 
-    /** Nút mũi tên: bấm gửi 1 lần, GIỮ thì lặp lại liên tục (dời con trỏ / chọn nhanh trên TV). */
-    @SuppressLint("ClickableViewAccessibility")
-    private fun arrow(kind: Int, key: String): IconButton = IconButton(context, kind).also { b ->
-        b.rect = true
-        val repeat = object : Runnable {
-            override fun run() {
-                send(JSONObject().put("action", "key").put("key", key), warn = false)
-                ui.postDelayed(this, 130)
-            }
-        }
-        b.setOnTouchListener { v, e ->
-            when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    v.isPressed = true
-                    Haptics.tick(v)
-                    send(JSONObject().put("action", "key").put("key", key))
-                    ui.postDelayed(repeat, 450)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.isPressed = false
-                    ui.removeCallbacks(repeat)
-                }
-            }
-            true
-        }
-    }
-
-    /** Thanh trượt: nhãn | thanh dày | số; nút kéo tròn. */
-    private fun sliderRow(label: String, action: String, initial: Int): View = LinearLayout(context).apply {
-        orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+    /** Thanh trượt DỌC: số ở trên, thanh ở giữa (kéo lên = tăng), nhãn ở dưới. */
+    private fun vSlider(label: String, action: String, initial: Int): View = LinearLayout(context).apply {
+        orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
         val value = TextView(context).apply {
-            text = "$initial"; textSize = 11.5f; setTextColor(RemoteTheme.ink); gravity = Gravity.END
+            text = "$initial"; textSize = 11.5f; setTextColor(RemoteTheme.ink); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
-        addView(caption(label, 9.5f).also { it.gravity = Gravity.START }, LayoutParams(dp(66), -2))
-        val trackH = dp(13)
-        val bg = GradientDrawable().apply {
-            setColor(RemoteTheme.track); cornerRadius = trackH / 2f; setStroke(dp(2), RemoteTheme.ink); setSize(-1, trackH)
-        }
-        val fg = GradientDrawable().apply { setColor(RemoteTheme.ink); cornerRadius = trackH / 2f; setSize(-1, trackH) }
-        val layers = LayerDrawable(arrayOf<Drawable>(bg, ClipDrawable(fg, Gravity.START, ClipDrawable.HORIZONTAL)))
-        layers.setId(0, android.R.id.background); layers.setId(1, android.R.id.progress)
-        val knob = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(RemoteTheme.accent); setStroke(dp(2), RemoteTheme.ink); setSize(dp(20), dp(20))
-        }
-        val sb = SeekBar(context).apply {
-            max = 100; progress = initial
-            progressDrawable = layers
-            thumb = knob
-            splitTrack = false
-            setPadding(dp(14), 0, dp(14), 0)
-            var last = 0L
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) {
-                    value.text = "$p"
-                    if (!fromUser) return
-                    val now = SystemClock.uptimeMillis()
-                    if (now - last >= 80) {
-                        last = now
-                        send(JSONObject().put("action", action).put("level", p), warn = false)
-                    }
+        addView(value, LayoutParams(-2, -2))
+        var last = 0L
+        val sl = VSlider(context, initial) { p, fromUser, done ->
+            value.text = "$p"
+            if (fromUser) {
+                val now = SystemClock.uptimeMillis()
+                if (done || now - last >= 80) {
+                    last = now
+                    send(JSONObject().put("action", action).put("level", p), warn = done)
                 }
-                override fun onStartTrackingTouch(s: SeekBar) {}
-                override fun onStopTrackingTouch(s: SeekBar) {
-                    send(JSONObject().put("action", action).put("level", s.progress))
-                }
-            })
+            }
         }
-        addView(sb, LayoutParams(0, -1, 1f))
-        addView(value, LayoutParams(dp(30), -2))
+        addView(sl, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2); it.bottomMargin = dp(2) })
+        addView(caption(label, 8.5f), LayoutParams(-2, -2))
     }
 
     private fun qualityButton(q: Int) = TextView(context).apply {
@@ -277,7 +221,7 @@ class RemotePanel(
 
     /** Nút đang chọn: nền mực chữ giấy; nút còn lại: nền giấy viền mực chữ mực. */
     private fun refreshQuality() {
-        for ((b, q) in listOf(btnQ360 to 360, btnQ720 to 720)) {
+        for ((b, q) in listOf(btnQ360 to 360, btnQ480 to 480, btnQ720 to 720)) {
             val on = quality == q
             b.background = box(if (on) RemoteTheme.ink else RemoteTheme.paper, 12, 2.2f)
             b.setTextColor(if (on) RemoteTheme.paper else RemoteTheme.ink)
@@ -333,4 +277,55 @@ class RemotePanel(
         ui.removeCallbacksAndMessages(null)
         sender.shutdown()
     }
+}
+
+/** Thanh trượt dọc tự vẽ: rãnh dày viền mực, phần đã kéo tô mực, nút kéo tròn. */
+class VSlider(
+    ctx: Context,
+    initial: Int,
+    private val onChange: (value: Int, fromUser: Boolean, done: Boolean) -> Unit
+) : View(ctx) {
+    var value = initial.coerceIn(0, 100)
+        private set
+
+    private val d = resources.displayMetrics.density
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+    private fun pad() = 14f * d
+    private fun trackW() = 16f * d
+
+    override fun onDraw(c: android.graphics.Canvas) {
+        val cx = width / 2f
+        val top = pad(); val bot = height - pad()
+        val tw = trackW()
+        val rect = android.graphics.RectF(cx - tw / 2, top, cx + tw / 2, bot)
+        p.style = android.graphics.Paint.Style.FILL; p.color = RemoteTheme.track
+        c.drawRoundRect(rect, tw / 2, tw / 2, p)
+        val y = bot - (bot - top) * value / 100f
+        p.color = RemoteTheme.ink
+        c.drawRoundRect(android.graphics.RectF(cx - tw / 2, y, cx + tw / 2, bot), tw / 2, tw / 2, p)
+        p.style = android.graphics.Paint.Style.STROKE; p.strokeWidth = 2f * d
+        c.drawRoundRect(rect, tw / 2, tw / 2, p)
+        p.style = android.graphics.Paint.Style.FILL; p.color = RemoteTheme.accent
+        c.drawCircle(cx, y, 11f * d, p)
+        p.style = android.graphics.Paint.Style.STROKE; p.color = RemoteTheme.ink
+        c.drawCircle(cx, y, 11f * d, p)
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                val top = pad(); val bot = height - pad()
+                val v = (((bot - e.y) / (bot - top)) * 100f).toInt().coerceIn(0, 100)
+                val up = e.actionMasked == MotionEvent.ACTION_UP
+                if (v != value || up) { value = v; invalidate(); onChange(v, true, up) }
+                if (up) performClick()
+            }
+            MotionEvent.ACTION_CANCEL -> onChange(value, true, true)
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean = super.performClick()
 }
