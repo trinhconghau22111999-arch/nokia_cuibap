@@ -11,6 +11,8 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -405,6 +407,7 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
     val web: WebView = WebView(act)
     val view: View get() = web
     private var lastToastAt = 0L
+    private var destroyed = false
 
     private fun allowedPage(u: Uri): Boolean {
         val scheme = (u.scheme ?: return false).lowercase()
@@ -432,6 +435,16 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
                 }
                 return true
             }
+            // Báo lỗi tải trang (thay vì im lặng hiện trang trắng) để biết nguyên nhân
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                if (request?.isForMainFrame != true || destroyed) return
+                act.runOnUiThread { Toast.makeText(act, "Lỗi tải Zalo Web: ${error?.description}", Toast.LENGTH_LONG).show() }
+            }
+            // Trình duyệt con bị hệ thống tắt (thường do thiếu RAM): trước đây app có thể sập, giờ chỉ báo và cho vào lại
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                act.runOnUiThread { Toast.makeText(act, "Zalo Web bị đóng do thiếu bộ nhớ, hãy thoát ra rồi vào lại", Toast.LENGTH_LONG).show() }
+                return true
+            }
         }
         web.webChromeClient = chromeClient(full)
         web.loadUrl("https://chat.zalo.me/")
@@ -441,5 +454,19 @@ class ZaloPane(private val act: Activity, private val full: FullscreenHost) {
     fun back(): Boolean { return if (web.canGoBack()) { web.goBack(); true } else false }
     fun onPause() { CookieManager.getInstance().flush(); web.onPause() }
     fun onResume() { web.onResume() }
-    fun destroy() { try { CookieManager.getInstance().flush(); (web.parent as? ViewGroup)?.removeView(web); web.destroy() } catch (e: Exception) { } }
+    /**
+     * Đóng gọn: về about:blank trước để trang Zalo kịp chạy sự kiện thoát (nhả khóa phiên / đóng kết nối),
+     * rồi mới hủy WebView sau 0,5 giây. Trước đây destroy() ngay nên phiên cũ bị cắt đột ngột, vào lại vài lần là kẹt.
+     */
+    fun destroy() {
+        if (destroyed) return
+        destroyed = true
+        try {
+            CookieManager.getInstance().flush()
+            web.stopLoading()
+            web.loadUrl("about:blank")
+            (web.parent as? ViewGroup)?.removeView(web)
+            web.postDelayed({ try { web.destroy() } catch (e: Exception) { } }, 500)
+        } catch (e: Exception) { }
+    }
 }
