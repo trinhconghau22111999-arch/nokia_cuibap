@@ -194,11 +194,10 @@ const val YT_NAV_JS = """
      break;
    }
  },1500);
- window.addEventListener('resize', function(){ if(innerWidth>innerHeight){ window.scrollTo(0,0); } });
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';
-   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}@media (orientation:landscape){html,body{overflow:hidden!important}#player,#player-container,ytm-player,.html5-video-player,.html5-video-container{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;max-height:100vh!important;margin:0!important;padding:0!important;z-index:9999!important}video{width:100%!important;height:100%!important;object-fit:contain!important}}.ytp-subtitles-button,.ytp-settings-button,.ytp-fullscreen-button,button[aria-label*="Phụ đề"],button[aria-label*="Cài đặt"],button[aria-label*="Toàn màn hình"],button[aria-label*="Subtitles"],button[aria-label*="Settings"],button[aria-label*="Full screen"],button[aria-label*="Fullscreen"]{display:none!important;pointer-events:none!important}';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}.ytp-subtitles-button,.ytp-settings-button,.ytp-fullscreen-button,button[aria-label*="Phụ đề"],button[aria-label*="Cài đặt"],button[aria-label*="Toàn màn hình"],button[aria-label*="Subtitles"],button[aria-label*="Settings"],button[aria-label*="Full screen"],button[aria-label*="Fullscreen"]{display:none!important;pointer-events:none!important}';
    (document.head||document.documentElement).appendChild(stA);
  }
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
