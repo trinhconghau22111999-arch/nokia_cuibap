@@ -1821,7 +1821,8 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
-        "youtube", "tv", "remote" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "youtube", "tv" -> if (ytVoice == 1) "Xong" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "remote" -> if (ytVoice == 1) "Xong" else "AI"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
