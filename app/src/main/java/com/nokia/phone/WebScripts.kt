@@ -171,7 +171,7 @@ const val HIDE_TOPBAR_JS = """
 })();
 """
 
-const val HIDE_OPEN_APP_JS = """
+const val HIDE_OPEN_APP_JS = YT_BUS_JS + """
 (function(){
   if (window.__hideOpenApp) return; window.__hideOpenApp = true;
   var st = document.createElement('style');
@@ -188,18 +188,25 @@ const val HIDE_OPEN_APP_JS = """
     var els = document.querySelectorAll('a,button,ytm-button-renderer,yt-button-shape');
     for (var i = 0; i < els.length; i++) {
       var e = els[i];
-      if (e.__oa) continue;
+      if (e.__oa || e.__oaChk) continue;
       var t = (e.innerText || e.getAttribute('aria-label') || '').replace(/\s+/g,' ').trim();
       if (t && RX.test(t)) {
         e.__oa = true;
         relabel(e);
         e.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); location.href = LOGIN; }, true);
+      } else if (t) {
+        // Đã đọc chữ và không phải nút cần đổi: lần sau bỏ qua, khỏi đọc innerText (buộc tính lại bố cục) lặp lại
+        e.__oaChk = true;
       }
     }
   }
-  var timer = null;
-  new MutationObserver(function(){ if (timer) return; timer = setTimeout(function(){ timer = null; sweep(); }, 200); })
-    .observe(document.documentElement, {childList:true, subtree:true});
+  // Chạy theo bộ theo dõi dùng chung (không còn observer + hẹn giờ 200 ms riêng)
+  if (window.__wbBus) window.__wbBus.add(sweep, 300);
+  else {
+    var timer = null;
+    new MutationObserver(function(){ if (timer) return; timer = setTimeout(function(){ timer = null; sweep(); }, 200); })
+      .observe(document.documentElement, {childList:true, subtree:true});
+  }
   sweep();
 })();
 """
@@ -276,9 +283,7 @@ const val YT_NAV_JS = YT_BUS_JS + """
   // tại vài điểm trên màn hình (elementsFromPoint) rồi mới đọc chữ; chạy theo bộ theo dõi dùng chung, tối đa ~1 lần/0,8 giây
   var bus=window.__wbBus;
   function every(fn,gap,fallbackMs){ if(bus) bus.add(fn,gap); else setInterval(fn,fallbackMs); }
-  var autonavLeft=0;
   document.addEventListener('loadedmetadata', function(){
-    autonavLeft=40;
     try{ var mp=document.getElementById('movie_player'); if(mp){ if(mp.setOption) mp.setOption('captions','track',{}); if(mp.unloadModule) mp.unloadModule('captions'); } }catch(e){}
     if(window.__wbApplyLand) window.__wbApplyLand();
     if(bus){ bus.reset(); bus.kick(300); }
