@@ -174,10 +174,27 @@ const val TV_FULL_JS = """
 const val YT_NAV_JS = """
 (function(){
  if(window.__wbNavInit) return; window.__wbNavInit=true;
+ // Ẩn thanh "Tiếp theo / Danh sách kết hợp" (quét theo chữ, chỉ vài chục giây sau khi video tải để tiết kiệm pin)
+ var autonavLeft=0;
+ document.addEventListener('loadedmetadata', function(){ autonavLeft=40; }, true);
+ setInterval(function(){
+   if(autonavLeft<=0) return;
+   autonavLeft--;
+   var els=document.querySelectorAll('div,section,span');
+   for(var i=0;i<els.length;i++){
+     var e=els[i];
+     if(e.children.length>5 || e.offsetHeight===0 || e.offsetHeight>300) continue;
+     var t=(e.textContent||'').trim();
+     if(t.indexOf('Tiếp theo')!==0) continue;
+     while(e.parentElement && e.parentElement.offsetHeight>0 && e.parentElement.offsetHeight<=300 && (e.parentElement.textContent||'').trim().indexOf('Tiếp theo')===0) e=e.parentElement;
+     e.style.setProperty('display','none','important');
+     break;
+   }
+ },1500);
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';
-   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}#player,#player-container,ytm-player,.player-container,.html5-video-player,.html5-video-container,.html5-main-video{width:100vw!important;height:100vh!important;max-height:100vh!important}video{width:100%!important;height:100%!important;object-fit:contain!important}';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}';
    (document.head||document.documentElement).appendChild(stA);
  }
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
