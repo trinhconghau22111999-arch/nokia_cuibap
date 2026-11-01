@@ -556,7 +556,9 @@ fun Phone() {
         if (screen != "youtube") return@LaunchedEffect
         val p = ytPane ?: return@LaunchedEffect
         delay(500)   // chờ bố cục xoay xong
-        p.autoFullscreen(isLandscape)
+        // Xoay ngang: video được phủ toàn màn hình bằng lớp riêng (như app TV), không cần bấm nút phóng to nữa.
+        // Xoay dọc: thoát chế độ toàn màn hình của video nếu đang bật.
+        if (!isLandscape) p.autoFullscreen(false)
     }
     DisposableEffect(Unit) {
         val owner = ctx as? androidx.lifecycle.LifecycleOwner
@@ -1815,7 +1817,7 @@ fun Phone() {
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
-                                WebArea(ytPane?.view, fullView, false) { back() }
+                                WebArea(ytPane?.view, fullView) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
                             }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
