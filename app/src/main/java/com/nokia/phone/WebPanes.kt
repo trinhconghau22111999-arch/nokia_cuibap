@@ -201,6 +201,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(HIDE_OPEN_APP_JS, null)
                     view?.evaluateJavascript(HIDE_TOPBAR_JS, null)
                     view?.evaluateJavascript(YT_NAV_JS, null)
+                    view?.evaluateJavascript(YT_QUALITY_JS, null)
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
                     view?.evaluateJavascript("window.__wbLock=$touchLock", null)
                 }

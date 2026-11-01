@@ -212,3 +212,33 @@ const val YT_NAV_JS = """
  };
 })();
 """
+
+/**
+ * YouTube: đặt chất lượng video mặc định 480p (large). Không có 480p thì hạ xuống 360p, rồi 240p.
+ * Áp dụng một lần cho mỗi video; người dùng vẫn đổi được trong menu của YouTube.
+ */
+const val YT_QUALITY_JS = """
+(function(){
+ if(window.__wbQualInit) return; window.__wbQualInit=true;
+ var TARGETS=['large','medium','small'];
+ var doneId=null;
+ function vidId(){ try{ return new URL(location.href).searchParams.get('v') || location.pathname; }catch(e){ return location.href; } }
+ function player(){ return document.getElementById('movie_player') || document.querySelector('.html5-video-player'); }
+ function apply(){
+   var id=vidId(); if(id===doneId) return;
+   var p=player(); if(!p) return;
+   if(p.classList && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'))) return;
+   var v=document.querySelector('video'); if(!v || v.readyState<1) return;
+   var levels=[]; try{ levels=(p.getAvailableQualityLevels && p.getAvailableQualityLevels()) || []; }catch(e){}
+   var pick=null;
+   for(var i=0;i<TARGETS.length;i++){ if(levels.length===0 || levels.indexOf(TARGETS[i])!==-1){ pick=TARGETS[i]; break; } }
+   if(!pick) return;
+   try{
+     if(p.setPlaybackQualityRange) p.setPlaybackQualityRange(pick,pick);
+     if(p.setPlaybackQuality) p.setPlaybackQuality(pick);
+     doneId=id;
+   }catch(e){}
+ }
+ setInterval(apply,1000);
+})();
+"""
