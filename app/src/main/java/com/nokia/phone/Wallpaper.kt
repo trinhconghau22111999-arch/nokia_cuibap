@@ -40,10 +40,11 @@ import kotlin.math.roundToInt
 
 /** Hình nền do người dùng chọn cho màn hình khóa (khung hiển thị phía trên). Lưu bản đã cắt đúng khung trong bộ nhớ riêng của app. */
 object Wallpaper {
-    private fun file(ctx: Context) = File(ctx.filesDir, "lock_wallpaper.jpg")
+    /** kind: "lock" = màn hình khóa, "home" = màn hình chính. */
+    private fun file(ctx: Context, kind: String) = File(ctx.filesDir, if (kind == "home") "home_wallpaper.jpg" else "lock_wallpaper.jpg")
 
-    fun load(ctx: Context): Bitmap? = try {
-        val f = file(ctx)
+    fun load(ctx: Context, kind: String = "lock"): Bitmap? = try {
+        val f = file(ctx, kind)
         if (f.exists()) BitmapFactory.decodeFile(f.path) else null
     } catch (_: Throwable) { null }
 
@@ -75,7 +76,7 @@ object Wallpaper {
      * Cắt đúng phần đang thấy trong khung xem thử (khung rộng fw x cao fh, ảnh phủ kín khung,
      * fx/fy = vị trí kéo 0..1) rồi lưu lại. Trả về ảnh đã cắt.
      */
-    fun saveCrop(ctx: Context, b: Bitmap, fx: Float, fy: Float, fw: Float, fh: Float): Bitmap? = try {
+    fun saveCrop(ctx: Context, b: Bitmap, fx: Float, fy: Float, fw: Float, fh: Float, kind: String = "lock"): Bitmap? = try {
         val out = if (fw > 0f && fh > 0f) {
             val s = maxOf(fw / b.width, fh / b.height)
             val vw = minOf(fw / s, b.width.toFloat()); val vh = minOf(fh / s, b.height.toFloat())
@@ -83,7 +84,7 @@ object Wallpaper {
             val t = ((b.height - vh) * fy).roundToInt().coerceIn(0, b.height - 1)
             Bitmap.createBitmap(b, l, t, vw.roundToInt().coerceIn(1, b.width - l), vh.roundToInt().coerceIn(1, b.height - t))
         } else b
-        file(ctx).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        file(ctx, kind).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 90, it) }
         out
     } catch (_: Throwable) { null }
 }
@@ -97,7 +98,7 @@ fun WallPreview(
     bmp: Bitmap, fx: Float, fy: Float,
     onSize: (Float, Float) -> Unit, onPan: (Float, Float) -> Unit,
     onSet: () -> Unit, onCancel: () -> Unit,
-    time: String = "", date: String = ""
+    time: String = "", date: String = "", home: Boolean = false
 ) {
     val img = remember(bmp) { bmp.asImageBitmap() }
     val curFx by rememberUpdatedState(fx)
@@ -130,7 +131,7 @@ fun WallPreview(
             )
         }
         Box(Modifier.fillMaxSize().border(3.dp, INK))
-        LockTexts(time, date, false, true)    // hiện đồng hồ + dòng hướng dẫn mở khóa như màn hình khóa thật
+        LockTexts(time, date, false, true, hint = !home)    // hiện đồng hồ + dòng hướng dẫn mở khóa như màn hình khóa thật
         // Điều khiển xem thử: nằm phía trên dòng hướng dẫn mở khóa, chỉ có nền mờ sau chữ
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 56.dp, start = 6.dp, end = 6.dp)) {
             Text("Kéo ảnh hoặc bấm ▲▼◀▶ để di chuyển", Modifier.align(Alignment.CenterHorizontally)

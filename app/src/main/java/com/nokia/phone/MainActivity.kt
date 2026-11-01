@@ -354,7 +354,7 @@ fun isBtOn(ctx: Context): Boolean = try {
 
 /** Đồng hồ, ngày và dòng hướng dẫn mở khóa (dùng chung cho màn hình khóa và khung xem thử hình nền). */
 @Composable
-fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false) {
+fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true) {
     // Có ảnh nền do người dùng chọn -> chữ trắng (kèm bóng mờ nhẹ cho dễ đọc); nền mặc định -> chữ đen như cũ
     val c = if (onPhoto) Color.White else INK
     val sh = if (onPhoto) androidx.compose.ui.text.TextStyle(
@@ -363,7 +363,7 @@ fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Bool
         Text(time, color = c, style = sh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
         Text(date, color = c, style = sh, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 2, textAlign = TextAlign.Center)
     }
-    Text(if (armed) "Bấm  *  để mở khóa" else "Bấm \"Menu\" và \"*\" để mở khóa",
+    if (hint) Text(if (armed) "Bấm  *  để mở khóa" else "Bấm \"Menu\" và \"*\" để mở khóa",
         Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         color = c, style = sh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
 }
@@ -420,6 +420,8 @@ fun Phone() {
     var wallFw by remember { mutableStateOf(0f) }                         // kích thước khung xem thử (px)
     var wallFh by remember { mutableStateOf(0f) }
     var wallBmp by remember { mutableStateOf<ImageBitmap?>(null) }       // hình nền màn hình khóa do người dùng chọn
+    var homeBmp by remember { mutableStateOf<ImageBitmap?>(null) }       // hình nền màn hình chính do người dùng chọn
+    var wallTarget by remember { mutableStateOf("lock") }                 // ảnh đang chọn dành cho: "lock" (khóa) hoặc "home" (chính)
     var infoTick by remember { mutableIntStateOf(0) }      // làm tươi số liệu (wifi, pin, SIM...) mỗi giây
     var wifiNets by remember { mutableStateOf(listOf<WifiNet>()) }
     var power by remember { mutableStateOf(PowerStore.load(ctx)) }
@@ -435,7 +437,10 @@ fun Phone() {
     var eon by remember { mutableStateOf(true) }
     var lcdRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) { wallBmp = withContext(Dispatchers.IO) { Wallpaper.load(ctx) }?.asImageBitmap() }
+    LaunchedEffect(Unit) {
+        wallBmp = withContext(Dispatchers.IO) { Wallpaper.load(ctx) }?.asImageBitmap()
+        homeBmp = withContext(Dispatchers.IO) { Wallpaper.load(ctx, "home") }?.asImageBitmap()
+    }
     val wallReq = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { u ->
         if (u != null) scope.launch {
             val b = withContext(Dispatchers.IO) { Wallpaper.decode(ctx, u) }
@@ -445,11 +450,14 @@ fun Phone() {
     }
     fun confirmWall() {
         val b = wallPick ?: return
-        val x = wallFx; val y = wallFy; val w = wallFw; val h = wallFh
+        val x = wallFx; val y = wallFy; val w = wallFw; val h = wallFh; val tgt = wallTarget
         scope.launch {
-            val out = withContext(Dispatchers.IO) { Wallpaper.saveCrop(ctx, b, x, y, w, h) }
+            val out = withContext(Dispatchers.IO) { Wallpaper.saveCrop(ctx, b, x, y, w, h, tgt) }
             wallPick = null
-            if (out != null) { wallBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình khóa", Toast.LENGTH_SHORT).show() }
+            if (out != null) {
+                if (tgt == "home") { homeBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình chính", Toast.LENGTH_SHORT).show() }
+                else { wallBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình khóa", Toast.LENGTH_SHORT).show() }
+            }
             else Toast.makeText(ctx, "Không lưu được ảnh", Toast.LENGTH_SHORT).show()
         }
     }
@@ -1689,7 +1697,8 @@ fun Phone() {
                 "settings" -> {
                     settingsSel = sel
                     when (SETTINGS.getOrElse(sel) { "reset" }) {
-                        "wallpaper" -> try { wallReq.launch("image/*") } catch (_: Exception) { Toast.makeText(ctx, "Máy không có app chọn ảnh", Toast.LENGTH_SHORT).show() }
+                        "homewall" -> { wallTarget = "home"; try { wallReq.launch("image/*") } catch (_: Exception) { Toast.makeText(ctx, "Máy không có app chọn ảnh", Toast.LENGTH_SHORT).show() } }
+                        "wallpaper" -> try { wallTarget = "lock"; wallReq.launch("image/*") } catch (_: Exception) { Toast.makeText(ctx, "Máy không có app chọn ảnh", Toast.LENGTH_SHORT).show() }
                         "launcher" -> launch(Intent(Settings.ACTION_HOME_SETTINGS))
                         "sound" -> open("sound")
                         "wifi" -> open("wifi")
@@ -1860,11 +1869,16 @@ fun Phone() {
                     true
                 }
         ) {
+            val homePhoto = screen == "home" && homeBmp != null     // màn hình chính có ảnh nền -> chữ trắng + bóng mờ
+            val homeInk = if (homePhoto) Color.White else INK
+            val homeSh = if (homePhoto) androidx.compose.ui.text.TextStyle(
+                shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
             // Màn hình LCD nhỏ (phần duy nhất thay đổi)
             Box(Modifier.fillMaxWidth().weight(0.72f).background(LCD), contentAlignment = Alignment.Center) {
             LcdFontScale {
             Box(Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize().background(LCD).statusBarsPadding()) {
+                if (homePhoto) Image(homeBmp!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Column(Modifier.fillMaxSize().background(if (homePhoto) Color.Transparent else LCD).statusBarsPadding()) {
                     Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { lcdRect = it.boundsInWindow() }
                         // Camera: khung xem trước phủ kín vùng LCD, không chừa rìa hai bên
                         .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 6.dp,
@@ -1872,11 +1886,11 @@ fun Phone() {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(now.take(5), color = INK, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
-                                    Text(dateNow(), color = INK, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
+                                    Text(now.take(5), color = homeInk, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    Text(dateNow(), color = homeInk, style = homeSh, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, textAlign = TextAlign.Center)
                                 }
-                                Text(dial.takeLast(12), color = INK, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
+                                Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
@@ -1918,7 +1932,7 @@ fun Phone() {
                             }
                             "calendar" -> MonthCalendar(monthOffset) { d -> monthOffset += d }
                             "settings" -> { val t = infoTick
-                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null) }, sel, tapItem, scroll) }
+                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null) }, sel, tapItem, scroll) }
                             "wifi" -> { val t = infoTick
                                 if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) Msg("Cần quyền Vị trí để quét wifi\n(bấm OK để cấp)")
                                 else Lines(wifiLines(ctx, wifiNets), sel, tapItem, scroll) }
@@ -2138,10 +2152,10 @@ fun Phone() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         // Vùng chạm chỉ bao quanh chữ (không chiếm nửa hàng như trước)
                         Box(Modifier.clickable { press("SOFTL") }.padding(horizontal = 6.dp, vertical = 5.dp)) {
-                            Text(left, color = INK, fontWeight = FontWeight.Bold, fontFamily = MONO, fontSize = 13.sp)
+                            Text(left, color = homeInk, style = homeSh, fontWeight = FontWeight.Bold, fontFamily = MONO, fontSize = 13.sp)
                         }
                         Box(Modifier.clickable { press("SOFTR") }.padding(horizontal = 6.dp, vertical = 5.dp)) {
-                            Text(right, color = INK, fontWeight = FontWeight.Bold, fontFamily = MONO, fontSize = 13.sp)
+                            Text(right, color = homeInk, style = homeSh, fontWeight = FontWeight.Bold, fontFamily = MONO, fontSize = 13.sp)
                         }
                     }
                 }
@@ -2151,7 +2165,7 @@ fun Phone() {
                         onSize = { w, h -> wallFw = w; wallFh = h },
                         onPan = { x, y -> wallFx = x; wallFy = y },
                         onSet = { press("OK") }, onCancel = { press("SOFTR") },
-                        time = now.take(5), date = dateNow())
+                        time = now.take(5), date = dateNow(), home = wallTarget == "home")
                 }
             }
             }
