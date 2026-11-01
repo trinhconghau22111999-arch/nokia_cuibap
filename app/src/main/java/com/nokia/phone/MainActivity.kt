@@ -588,7 +588,7 @@ fun Phone() {
         when (grp(p)) {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
             "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
-            "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull() }
+            "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "zaloweb" -> { zwPane?.destroy(); zwPane = null; webHost.hideFull(); webEntry.reset(); webEntry.mode = 0 }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
             "sms" -> {
@@ -1255,7 +1255,7 @@ fun Phone() {
             "menu" -> open("home")
             "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
             "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
-            "tv" -> if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
+            "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
             "alarmEdit" -> screen = "clock"
@@ -1412,6 +1412,32 @@ fun Phone() {
             )
         }
     }
+    /** Nút AI trong TV: nghe giọng nói rồi CHỈ tìm và phát kênh tivi theo tên đã nói (dùng chung trạng thái nghe ytVoice/ytHeard). */
+    fun tvListen() {
+        if (!voice.available()) { Toast.makeText(ctx, "Máy chưa có dịch vụ nhận dạng giọng nói", Toast.LENGTH_LONG).show(); return }
+        need(listOf(Manifest.permission.RECORD_AUDIO)) {
+            ytVoice = 1; ytHeard = ""; aiLevel = 0f
+            voice.start(
+                onPartial = { ytHeard = it },
+                onLevel = { aiLevel = it },
+                onResult = { list ->
+                    if (ytVoice == 1) {
+                        ytVoice = 0
+                        val heard = list.filter { it.isNotBlank() }
+                        if (heard.isEmpty()) Toast.makeText(ctx, "Không nghe rõ, bấm AI để thử lại", Toast.LENGTH_SHORT).show()
+                        else {
+                            val cands = heard.flatMap { h ->
+                                listOfNotNull((AiParser.parse(h) as? AiCmd.Tv)?.query?.takeIf { it.isNotBlank() }, TvChannels.find(ctx, h), tvCleanQuery(h))
+                            }.distinct()
+                            if (cands.none { tvPane?.playByName(it) == true })
+                                Toast.makeText(ctx, "Không thấy kênh \"${tvCleanQuery(heard.first())}\"", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onError = { code -> if (ytVoice == 1) { ytVoice = 0; Toast.makeText(ctx, aiErrorText(code), Toast.LENGTH_LONG).show() } }
+            )
+        }
+    }
     fun aiConfirm() {
         val p = aiCands.getOrNull(aiPick) ?: return
         when (aiKind) {
@@ -1475,14 +1501,14 @@ fun Phone() {
             else lockAt = 0L
             return
         }
-        if (screen == "youtube") {
+        if (screen == "youtube" || screen == "tv") {
             if (ytVoice == 1) {   // đang nghe: OK / phím mềm trái = nói xong; phím khác bỏ qua
                 if (k == "OK" || k == "SOFTL") voice.stop()
                 else if (k == "SOFTR") { voice.cancel(); ytVoice = 0 }
                 else if (k == "END") { voice.cancel(); ytVoice = 0; open("home") }
                 return
             }
-            if (k == "SOFTL") { ytListen(); return }
+            if (k == "SOFTL") { if (screen == "youtube") ytListen() else tvListen(); return }
         }
         if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
             // Gõ chữ vào ô nhập của trang bằng phím số của app: 2-9 bấm lặp = chọn chữ, * = dấu tiếng Việt,
@@ -1727,8 +1753,8 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
-        "youtube" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube
-        "tv", "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
+        "youtube", "tv" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
@@ -1791,7 +1817,10 @@ fun Phone() {
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
                             }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
-                            "tv" -> WebArea(tvPane?.view, fullView) { back() }
+                            "tv" -> Box(Modifier.fillMaxSize()) {
+                                WebArea(tvPane?.view, fullView) { back() }
+                                if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói tên kênh tivi")
+                            }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
                             "clock" -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(now, Modifier.padding(top = 16.dp), color = INK, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)

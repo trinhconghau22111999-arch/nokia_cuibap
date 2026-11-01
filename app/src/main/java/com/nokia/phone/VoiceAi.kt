@@ -268,7 +268,7 @@ fun ytCleanQuery(raw: String): String {
 
 /** Lớp phủ "đang nghe" của nút AI trong YouTube (vẽ đè lên khung YouTube trong ô LCD). */
 @Composable
-fun YtListenOverlay(heard: String, level: Float) {
+fun YtListenOverlay(heard: String, level: Float, hint: String = "Nói tên video cần tìm") {
     Column(Modifier.fillMaxSize().background(LCD).padding(horizontal = 6.dp), Arrangement.Top, Alignment.CenterHorizontally) {
         val n = (((level + 2f) / 12f).coerceIn(0f, 1f) * 10f).toInt()
         Spacer(Modifier.height(16.dp))
@@ -276,8 +276,17 @@ fun YtListenOverlay(heard: String, level: Float) {
         Spacer(Modifier.height(6.dp))
         Text("█".repeat(n) + "░".repeat(10 - n), color = INK, fontSize = 18.sp, fontFamily = MONO)
         Spacer(Modifier.height(10.dp))
-        Text(if (heard.isEmpty()) "Nói tên video cần tìm" else heard,
+        Text(if (heard.isEmpty()) hint else heard,
             color = INK, fontSize = 18.sp, fontFamily = MONO, fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center, maxLines = 5, overflow = TextOverflow.Ellipsis)
     }
+}
+
+/** Bỏ từ thừa khi nói tên kênh tivi: "mở kênh HTV9 trên tivi" -> "HTV9". */
+fun tvCleanQuery(raw: String): String {
+    var q = ytCleanQuery(raw)
+    val head = Regex("^(kênh |đài |truyền hình |tivi |tv |ti vi )+", RegexOption.IGNORE_CASE)
+    val tail = Regex(" (trên|ở) (tivi|tv|ti vi)$", RegexOption.IGNORE_CASE)
+    q = q.replace(head, "").replace(tail, "").trim()
+    return q.ifBlank { raw.trim() }
 }
