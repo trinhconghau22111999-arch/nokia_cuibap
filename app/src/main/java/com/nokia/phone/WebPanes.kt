@@ -234,6 +234,16 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
  addEventListener('touchmove',function(e){var c=e.touches[0];if(c&&(Math.abs(c.clientX-sx)>10||Math.abs(c.clientY-sy)>10))mv=true},{capture:true,passive:true});
  addEventListener('touchend',function(e){if(active()&&!mv&&!ok(e.target))block(e)},{capture:true,passive:false});
  addEventListener('click',function(e){if(active()&&!ok(e.target))block(e)},true);
+ // Mọi trang (trang chủ, tìm kiếm, xem video): chạm vào ảnh/liên kết kênh tác giả thì không mở trang tác giả
+ var CH_SEL='ytm-channel-thumbnail-with-link-renderer,ytm-channel-thumbnail-renderer,[class*="channel-thumbnail"],[class*="channel-avatar"]';
+ function isCh(t){
+  if(!t||!t.closest)return false;
+  if(t.closest(CH_SEL))return true;
+  var a=t.closest('a[href]');
+  if(a){try{var pa=new URL(a.href,location.href).pathname;return /^\/(@|channel\/|c\/|user\/)/.test(pa)}catch(e){}}
+  return false}
+ addEventListener('touchend',function(e){if(!mv&&isCh(e.target))block(e)},{capture:true,passive:false});
+ addEventListener('click',function(e){if(isCh(e.target))block(e)},true);
 })();
 """.trimIndent()
 
