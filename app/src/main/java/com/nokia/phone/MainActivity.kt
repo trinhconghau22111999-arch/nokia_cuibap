@@ -1527,6 +1527,7 @@ fun Phone() {
                 "LEFT" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT; "RIGHT" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
                 else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
             }
+            if (screen == "tv" && tvPane?.onKey(k) == true) return     // trang chọn đài / kênh: ô chọn di chuyển bằng ▲▼◀▶, OK = chọn
             (when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.view })?.let { v ->
                 v.requestFocus()
                 v.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))

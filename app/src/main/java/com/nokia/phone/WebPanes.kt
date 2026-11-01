@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.SystemClock
@@ -333,6 +334,58 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
 
     private fun dp(v: Int) = (v * act.resources.displayMetrics.density).toInt()
 
+    // ---- Chọn đài / kênh bằng phím ▲▼◀▶ + OK của app: có ô vuông sáng viền trắng đánh dấu mục đang chọn ----
+    private var navItems: List<Button> = emptyList()
+    private var navCols = 1
+    private var navSel = 0
+    private var navScroll: ScrollView? = null
+
+    private fun paintNav() {
+        navItems.forEachIndexed { i, b ->
+            val sel = i == navSel
+            b.background = GradientDrawable().apply {
+                setColor(if (sel) 0xFF1565C0.toInt() else 0xFF2B2B3A.toInt())
+                cornerRadius = dp(6).toFloat()
+                if (sel) setStroke(dp(3), Color.WHITE)
+            }
+        }
+        val b = navItems.getOrNull(navSel) ?: return
+        val sv = navScroll ?: return
+        sv.post {      // cuộn để mục đang chọn luôn nằm giữa màn hình
+            var top = 0; var p: View = b
+            while (p !== sv) { top += p.top; p = (p.parent as? View) ?: break }
+            sv.smoothScrollTo(0, maxOf(0, top - (sv.height - b.height) / 2))
+        }
+    }
+
+    private fun setNav(items: List<Button>, cols: Int, sv: ScrollView, sel: Int) {
+        navItems = items; navCols = cols; navScroll = sv
+        navSel = sel.coerceIn(0, maxOf(0, items.lastIndex))
+        paintNav()
+    }
+
+    private fun moveNav(d: Int) {
+        val last = navItems.lastIndex
+        val n = navSel + d
+        if (n in 0..last) navSel = n
+        else if (d == navCols && navCols > 1 && navSel / navCols < last / navCols) navSel = last   // ▼ ở hàng áp chót -> xuống ô cuối
+        paintNav()
+    }
+
+    /** Phím điều khiển ở trang chọn đài / chọn kênh. true = đã xử lý; false (đang xem kênh) = chuyển cho trang phát. */
+    fun onKey(k: String): Boolean {
+        if (level == 2 || navItems.isEmpty()) return false
+        when (k) {
+            "LEFT" -> moveNav(-1)
+            "RIGHT" -> moveNav(1)
+            "UP" -> moveNav(-navCols)
+            "DOWN" -> moveNav(navCols)
+            "OK" -> navItems.getOrNull(navSel)?.performClick()
+            else -> return false
+        }
+        return true
+    }
+
     init {
         view.setBackgroundColor(Color.BLACK)
         view.addView(chooser, FrameLayout.LayoutParams(-1, -1))
@@ -361,7 +414,7 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         setBackgroundColor(0xFF2B2B3A.toInt()); setOnClickListener { onClick() }
     }
 
-    private fun showGroups() {
+    private fun showGroups(sel: Int = 0) {
         level = 0; curGroup = -1
         stopPlayer()
         chooser.removeAllViews(); chooser.visibility = View.VISIBLE
@@ -369,8 +422,10 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         val col = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(12)) }
         col.addView(label("Chọn Kênh", 20f).apply { setPadding(0, 0, 0, dp(10)) })
         val grid = GridLayout(act).apply { columnCount = 3 }
+        val navList = ArrayList<Button>()
         groups.forEachIndexed { i, g ->
             val b = chip(g.first) { showChannels(i) }
+            navList.add(b)
             val lp = GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED, 1f), GridLayout.spec(GridLayout.UNDEFINED, 1f))
             lp.width = 0; lp.height = dp(64); lp.setMargins(dp(4), dp(4), dp(4), dp(4))
             grid.addView(b, lp)
@@ -378,9 +433,10 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         col.addView(grid)
         sv.addView(col)
         chooser.addView(sv, FrameLayout.LayoutParams(-1, -1))
+        setNav(navList, 3, sv, sel)
     }
 
-    private fun showChannels(gi: Int) {
+    private fun showChannels(gi: Int, sel: Int = 0) {
         level = 1; curGroup = gi
         if (groups[gi].second.size == 1) { play(groups[gi].second[0].second); return }   // đài chỉ có 1 kênh: xem luôn
         stopPlayer()
@@ -388,19 +444,23 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         val sv = ScrollView(act)
         val col = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(12)) }
         col.addView(label(groups[gi].first, 20f).apply { setPadding(0, 0, 0, dp(10)) })
+        val navList = ArrayList<Button>()
         groups[gi].second.forEach { (name, url) ->
             val b = chip(name) { play(url) }
+            navList.add(b)
             val lp = LinearLayout.LayoutParams(-1, dp(56)); lp.setMargins(0, dp(4), 0, dp(4))
             col.addView(b, lp)
         }
         sv.addView(col)
         chooser.addView(sv, FrameLayout.LayoutParams(-1, -1))
+        setNav(navList, 1, sv, sel)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun play(url: String) {
         level = 2
         curUrl = url
+        navItems = emptyList()
         chooser.visibility = View.GONE
         val w = NoKeyboardWebView(act)
         configureWebView(act, w)
@@ -490,10 +550,12 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
     fun back(): Boolean {
         return when (level) {
             2 -> {
-                if (curGroup >= 0 && groups[curGroup].second.size > 1) showChannels(curGroup) else showGroups()
+                val g = curGroup
+                if (g >= 0 && groups[g].second.size > 1) showChannels(g, groups[g].second.indexOfFirst { it.second == curUrl }.coerceAtLeast(0))
+                else showGroups(maxOf(g, 0))
                 true
             }
-            1 -> { showGroups(); true }
+            1 -> { val g = curGroup; showGroups(maxOf(g, 0)); true }
             else -> false
         }
     }
