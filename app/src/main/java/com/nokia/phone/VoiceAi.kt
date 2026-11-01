@@ -9,6 +9,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.os.SystemClock
 import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -43,9 +44,16 @@ const val SILENCE_MS = 2000L
 const val START_WAIT_MS = 3000L
 /** Mã lỗi riêng: không có mạng và máy chưa tải gói giọng nói tiếng Việt ngoại tuyến. */
 const val ERR_NO_OFFLINE = 9001
+/** Lỗi "mất kết nối với dịch vụ nhận dạng" (ERROR_SERVER_DISCONNECTED, hay gặp khi bấm lại quá nhanh). */
+const val ERR_SERVER_DISCONNECTED = 11
+/** Sau khi hủy một lần nghe, đợi chừng này rồi mới tạo bộ nhận dạng mới, để dịch vụ kịp nhả lượt cũ (tránh xung đột). */
+const val RESTART_GAP_MS = 600L
 
 class VoiceInput(private val ctx: Context) {
     private var rec: SpeechRecognizer? = null
+    private var lastCancelAt = 0L                 // lúc hủy bộ nhận dạng gần nhất
+    private var pendingStart: Runnable? = null    // lượt nghe đang chờ đến lúc bắt đầu
+    private var retries = 0                       // số lần tự thử lại trong lượt hiện tại
     private val handler = Handler(Looper.getMainLooper())
     private val silenceStop = Runnable { stop() }          // im lặng đủ lâu -> chốt luôn, không chờ bộ nhận dạng
     private fun armSilence() { handler.removeCallbacks(silenceStop); handler.postDelayed(silenceStop, SILENCE_MS) }
@@ -74,7 +82,14 @@ class VoiceInput(private val ctx: Context) {
         onError: (Int) -> Unit
     ) {
         cancel()
-        startRec(!online(), onPartial, onLevel, onResult, onError)
+        retries = 0
+        val wait = (RESTART_GAP_MS - (SystemClock.uptimeMillis() - lastCancelAt)).coerceAtLeast(0L)
+        val job = Runnable {
+            pendingStart = null
+            startRec(!online(), onPartial, onLevel, onResult, onError)
+        }
+        pendingStart = job
+        handler.postDelayed(job, wait)
     }
 
     private fun startRec(
@@ -99,9 +114,14 @@ class VoiceInput(private val ctx: Context) {
                 disarmSilence()
                 val netErr = error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ||
                     error == SpeechRecognizer.ERROR_SERVER
-                if (!offline && netErr) {
+                val busyErr = error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == ERR_SERVER_DISCONNECTED
+                if (busyErr && retries < 1) {
+                    // Dịch vụ đang bận / vừa ngắt (thường do bấm lại quá nhanh hoặc app khác đang dùng micro): đợi rồi thử lại một lần
+                    retries++
+                    handler.postDelayed({ cancel(); startRec(offline, onPartial, onLevel, onResult, fail) }, RESTART_GAP_MS * 2)
+                } else if (!offline && netErr) {
                     // Mạng chập chờn / máy chủ lỗi -> thử lại một lần bằng gói ngoại tuyến
-                    handler.post { cancel(); startRec(true, onPartial, onLevel, onResult, fail) }
+                    handler.postDelayed({ cancel(); startRec(true, onPartial, onLevel, onResult, fail) }, RESTART_GAP_MS)
                 } else if (offline && (netErr || error == 12 || error == 13)) {
                     fail(ERR_NO_OFFLINE)    // chưa có gói tiếng Việt ngoại tuyến trên máy
                 } else fail(error)
@@ -141,8 +161,11 @@ class VoiceInput(private val ctx: Context) {
     /** Hủy hẳn, không trả kết quả. */
     fun cancel() {
         disarmSilence()
+        pendingStart?.let { handler.removeCallbacks(it) }
+        pendingStart = null
         val r = rec ?: return
         rec = null
+        lastCancelAt = SystemClock.uptimeMillis()
         try { r.setRecognitionListener(null) } catch (_: Throwable) {}
         try { r.cancel() } catch (_: Throwable) {}
         try { r.destroy() } catch (_: Throwable) {}
@@ -157,6 +180,7 @@ fun aiErrorText(code: Int): String = when (code) {
     SpeechRecognizer.ERROR_AUDIO -> "Micro đang bận hoặc lỗi âm thanh."
     SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Bộ nhận dạng đang bận, thử lại sau giây lát."
     SpeechRecognizer.ERROR_SERVER -> "Máy chủ nhận dạng giọng nói lỗi, thử lại."
+    ERR_SERVER_DISCONNECTED -> "Mất kết nối với dịch vụ giọng nói. Bấm AI thử lại sau vài giây."
     else -> "Không nhận dạng được (mã $code).\nKiểm tra mạng và app Google."
 }
 
