@@ -1785,7 +1785,7 @@ fun Phone() {
                                 Text(dial.takeLast(12), color = INK, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
-                            "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll)
+                            "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
@@ -2062,11 +2062,11 @@ fun Phone() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList()) {
+fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList(), scale: Float = 1f) {
     // detail: các dòng chữ nhỏ chèn ngay dưới ô đang chọn (không chọn được, không chiếm số thứ tự)
     val extra = if (sel in items.indices) detail.size else 0
     // Mỗi hàng cao cố định; số hàng hiện ra = chiều cao còn trống / chiều cao hàng -> lấp đầy phần dưới màn hình
-    val rowH = with(LocalDensity.current) { (14f * 1.7f).sp.toDp() }
+    val rowH = with(LocalDensity.current) { (14f * scale * 1.7f).sp.toDp() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val visible = maxOf(1, (maxHeight / rowH).toInt())
         val total = items.size + extra
@@ -2100,10 +2100,10 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
                                         iterations = Int.MAX_VALUE, animationMode = MarqueeAnimationMode.Immediately,
                                         spacing = MarqueeSpacing(32.dp), velocity = 40.dp),
                                     color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
+                                    fontSize = (14f * scale).sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                             } else {
                                 Text(items[i], color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    fontSize = (14f * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
