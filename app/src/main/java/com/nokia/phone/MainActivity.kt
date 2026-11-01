@@ -606,9 +606,15 @@ fun Phone() {
         lifeOwner.lifecycle.addObserver(o)
         onDispose { lifeOwner.lifecycle.removeObserver(o) }
     }
-    LaunchedEffect(uiResumed) {
+    // Tiết kiệm pin: chỉ màn hình Đồng hồ hiện giây nên mới cập nhật mỗi giây; các màn khác (màn chính, khóa...) chỉ cập nhật đúng lúc đổi phút
+    // (trước đây cả giao diện, kể cả ảnh nền, bị vẽ lại mỗi giây). Tắt màn hình / ra khỏi app thì dừng hẳn.
+    val clockSeconds = screen == "clock"
+    LaunchedEffect(uiResumed, clockSeconds) {
         if (!uiResumed) return@LaunchedEffect
-        while (true) { now = timeNow(); delay(1000) }
+        while (true) {
+            now = timeNow()
+            delay(if (clockSeconds) 1000L else 60_000L - System.currentTimeMillis() % 60_000L + 30L)
+        }
     }
     // Dọn dữ liệu theo màn hình: rời nhóm màn hình nào thì xóa dữ liệu của nhóm đó, không nhớ màn cũ
     var prevScreen by remember { mutableStateOf(screen) }
