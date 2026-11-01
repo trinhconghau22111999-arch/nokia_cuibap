@@ -164,6 +164,7 @@ class RemotePanel(
         side.addView(q, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val btnNext = textButton("BÀI TIẾP", 13f) { send(JSONObject().put("action", "media").put("cmd", "next")) }
         side.addView(btnNext, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
+        side.scaleX = 0.9f; side.scaleY = 0.9f   // cụm LÙI / chất lượng / BÀI TIẾP nhỏ lại 10%
         mid.addView(side, LayoutParams(0, -1, 1.7f).also { it.leftMargin = dp(6) })
         addView(mid, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2) })
         refreshQuality()
@@ -190,7 +191,7 @@ class RemotePanel(
             text = "$initial"; textSize = 11.5f; setTextColor(RemoteTheme.ink); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
-        addView(value, LayoutParams(-2, -2))
+        addView(value, LayoutParams(-2, dp(16)))
         var last = 0L
         val sl = VSlider(context, initial) { p, fromUser, done ->
             value.text = "$p"
@@ -203,7 +204,9 @@ class RemotePanel(
             }
         }
         addView(sl, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2); it.bottomMargin = dp(2) })
-        addView(caption(label, 8.5f), LayoutParams(-2, -2))
+        // Nhãn 1 dòng, cao cố định -> chữ 2 thanh luôn cùng hàng và 2 thanh dài bằng nhau
+        val cap = caption(label, 8f).apply { isSingleLine = true; ellipsize = null; includeFontPadding = false }
+        addView(cap, LayoutParams(-2, dp(14)))
     }
 
     private fun qualityButton(q: Int) = TextView(context).apply {
