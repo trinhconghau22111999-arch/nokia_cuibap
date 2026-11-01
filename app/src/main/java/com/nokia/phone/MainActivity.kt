@@ -24,6 +24,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import android.provider.ContactsContract
@@ -2307,7 +2308,7 @@ fun CamModeIcon(video: Boolean, rec: Boolean) {
 
 /** Lớp toàn màn hình (xem ngang): nền đen, phủ kín cả bàn phím và thanh trên. */
 @Composable
-fun BoxScope.FullScreenPane(pane: View?) {
+fun BoxScope.FullScreenPane(pane: android.view.View?) {
     if (pane == null) return
     Box(Modifier.matchParentSize().background(Color.Black).zIndex(10f)) { HostView(pane) }
 }
