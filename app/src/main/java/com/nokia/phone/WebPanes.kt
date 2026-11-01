@@ -6,6 +6,9 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -31,6 +34,7 @@ import android.widget.Toast
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 
@@ -119,6 +123,14 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     val web: WebView = NoKeyboardWebView(act)
     val view: View get() = web
     private var lastToastAt = 0L
+    private var destroyedYt = false
+
+    /** Theo dõi video đang ở chế độ toàn màn hình (do nút phóng to của YouTube) hay không. */
+    @Volatile private var inFull = false
+    private val trackedFull = object : FullscreenHost by full {
+        override fun showFull(v: View, cb: WebChromeClient.CustomViewCallback?) { inFull = true; full.showFull(v, cb) }
+        override fun hideFull() { inFull = false; full.hideFull() }
+    }
 
     inner class VoiceBridge {
         @JavascriptInterface fun startVoiceSearch() { act.runOnUiThread { full.launchVoice() } }
@@ -187,8 +199,58 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                 }
             }
         }
-        web.webChromeClient = chromeClient(full)
+        web.webChromeClient = chromeClient(trackedFull)
         web.loadUrl(YT_HOME)
+    }
+
+    // ---- Xoay ngang = tự bấm nút phóng to của YouTube, video vẫn tiếp tục phát; xoay dọc = thu nhỏ lại ----
+    private val IS_PLAYING_JS = "(function(){var v=document.querySelector('video');return !!(v&&!v.paused&&!v.ended)})()"
+    private val RESUME_JS = "(function(){var v=document.querySelector('video');if(v&&v.paused&&!v.ended){var p=v.play();if(p&&p.catch)p.catch(function(){})}})()"
+    // Tọa độ (px của WebView) của nút phóng to; null = chưa mở video / đã toàn màn hình / không thấy nút
+    private val FS_RECT_JS = "(function(){try{if(document.fullscreenElement||document.webkitFullscreenElement)return null;" +
+        "var v=document.querySelector('video');var onVideo=location.pathname.indexOf('/watch')==0||location.pathname.indexOf('/shorts')==0||(v&&v.readyState>=1&&v.duration>0);" +
+        "if(!onVideo)return null;var sels=['button.fullscreen-icon','button.ytp-fullscreen-button','.ytp-fullscreen-button','button[aria-label*=\"ull screen\" i]','button[aria-label*=\"toàn màn hình\" i]','button[aria-label*=\"Phóng to\" i]'];" +
+        "for(var i=0;i<sels.length;i++){var e=document.querySelector(sels[i]);if(e){var r=e.getBoundingClientRect();" +
+        "if(r.width>0&&r.height>0){var d=window.devicePixelRatio||1;return [(r.left+r.width/2)*d,(r.top+r.height/2)*d]}}}return null}catch(x){return null}})()"
+    private val EXIT_FS_JS = "(function(){try{if(document.fullscreenElement||document.webkitFullscreenElement)(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(e){}})()"
+
+    /** Chạm thật (touch) vào WebView để trình duyệt chấp nhận lệnh phóng to (JS thuần không đủ quyền "người dùng bấm"). */
+    private fun tapAt(x: Float, y: Float) {
+        val t = SystemClock.uptimeMillis()
+        val d = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0).apply { source = InputDevice.SOURCE_TOUCHSCREEN }
+        web.dispatchTouchEvent(d); d.recycle()
+        web.postDelayed({
+            val t2 = SystemClock.uptimeMillis()
+            val u = MotionEvent.obtain(t, t2, MotionEvent.ACTION_UP, x, y, 0).apply { source = InputDevice.SOURCE_TOUCHSCREEN }
+            web.dispatchTouchEvent(u); u.recycle()
+        }, 60)
+    }
+
+    private fun resumeIfWasPlaying(was: Boolean) {
+        if (!was) return
+        for (ms in longArrayOf(700, 1800, 3500)) web.postDelayed({ if (!destroyedYt) web.evaluateJavascript(RESUME_JS, null) }, ms)
+    }
+
+    private fun tryEnterFull(attempt: Int, was: Boolean) {
+        if (destroyedYt || inFull || attempt > 3) return
+        web.evaluateJavascript(FS_RECT_JS) { r ->
+            val xy = try { JSONArray(r ?: "null").let { if (it.length() == 2) it.getDouble(0).toFloat() to it.getDouble(1).toFloat() else null } } catch (e: Exception) { null }
+                ?: return@evaluateJavascript
+            tapAt(xy.first, xy.second)
+            resumeIfWasPlaying(was)
+            // Nếu thanh điều khiển đang ẩn thì lần chạm đầu chỉ làm nó hiện ra -> chạm lại sau 1 giây (đủ xa để không thành chạm đúp tua video)
+            web.postDelayed({ tryEnterFull(attempt + 1, was) }, 1000)
+        }
+    }
+
+    /** enter = true khi máy xoay ngang, false khi xoay dọc. */
+    fun autoFullscreen(enter: Boolean) {
+        if (destroyedYt) return
+        web.evaluateJavascript(IS_PLAYING_JS) { r ->
+            val was = r == "true"
+            if (enter) tryEnterFull(1, was)
+            else if (inFull) { web.evaluateJavascript(EXIT_FS_JS, null); resumeIfWasPlaying(was) }
+        }
     }
 
     // Lich su duoi dang danh sach URL tu theo doi (khong phu thuoc lich su WebView vi YouTube hay thay the muc lich su)
@@ -223,7 +285,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     }
     fun onPause() { CookieManager.getInstance().flush(); web.onPause() }
     fun onResume() { web.onResume() }
-    fun destroy() { try { (web.parent as? ViewGroup)?.removeView(web); web.destroy() } catch (e: Exception) { } }
+    fun destroy() { destroyedYt = true; try { (web.parent as? ViewGroup)?.removeView(web); web.destroy() } catch (e: Exception) { } }
 }
 
 /** TV mới: trang chọn đài (Việt Nam, Cà Mau, Cần Thơ...) -> chọn kênh -> xem. Danh sách ở assets/channels.json. */

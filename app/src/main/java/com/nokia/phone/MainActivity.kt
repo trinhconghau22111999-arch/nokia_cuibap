@@ -547,6 +547,14 @@ fun Phone() {
             } else w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_UNSPECIFIED)
         }
     }
+    // YouTube: xoay ngang = tự bấm nút phóng to của video (video vẫn phát tiếp), xoay dọc = thu nhỏ lại
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    LaunchedEffect(isLandscape, screen, ytPane) {
+        if (screen != "youtube") return@LaunchedEffect
+        val p = ytPane ?: return@LaunchedEffect
+        delay(500)   // chờ bố cục xoay xong
+        p.autoFullscreen(isLandscape)
+    }
     DisposableEffect(Unit) {
         val owner = ctx as? androidx.lifecycle.LifecycleOwner
         val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
@@ -1743,7 +1751,7 @@ fun Phone() {
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll)
-                            "youtube" -> WebArea(ytPane?.view, fullView) { back() }
+                            "youtube" -> WebArea(ytPane?.view, fullView, false) { back() }
                             "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
                             "tv" -> WebArea(tvPane?.view, fullView) { back() }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
