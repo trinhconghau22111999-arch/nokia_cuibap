@@ -1886,7 +1886,7 @@ fun Phone() {
                     true
                 }
         ) {
-            val homePhoto = screen == "home" && homeBmp != null     // màn hình chính có ảnh nền -> chữ trắng + bóng mờ
+            val homePhoto = (screen == "home" || screen == "menu") && homeBmp != null     // màn hình chính có ảnh nền -> chữ trắng + bóng mờ
             val homeInk = if (homePhoto && !homeLight) Color.White else INK     // ảnh sáng -> chữ đen, ảnh tối -> chữ trắng
             val homeSh = if (homePhoto) androidx.compose.ui.text.TextStyle(
                 shadow = androidx.compose.ui.graphics.Shadow((if (homeLight) Color.White else Color.Black).copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
@@ -1910,7 +1910,9 @@ fun Phone() {
                                 Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
-                            "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
+                            "menu" -> if (homePhoto) Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f,
+                                ink = homeInk, inkOn = if (homeInk == Color.White) INK else Color.White, rowBg = Color.Transparent, style = homeSh)
+                                else Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
@@ -2201,7 +2203,10 @@ fun Phone() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList(), scale: Float = 1f) {
+fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList(), scale: Float = 1f,
+          ink: Color = INK, inkOn: Color = LCD, rowBg: Color = LCD,
+          style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default) {
+    // ink / inkOn / rowBg / style: dùng khi có ảnh nền (menu): chữ theo độ sáng ảnh, hàng không tô nền, ô chọn tô màu chữ
     // detail: các dòng chữ nhỏ chèn ngay dưới ô đang chọn (không chọn được, không chiếm số thứ tự)
     val extra = if (sel in items.indices) detail.size else 0
     // Mỗi hàng cao cố định; số hàng hiện ra = chiều cao còn trống / chiều cao hàng -> lấp đầy phần dưới màn hình
@@ -2220,9 +2225,9 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
         }) {
             for (row in start until minOf(total, start + visible)) {
                 if (row > sel && row <= sel + extra) {
-                    Box(Modifier.fillMaxWidth().height(rowH).background(LCD).padding(start = 20.dp, end = 6.dp),
+                    Box(Modifier.fillMaxWidth().height(rowH).background(rowBg).padding(start = 20.dp, end = 6.dp),
                         contentAlignment = Alignment.CenterStart) {
-                        Text(detail[row - sel - 1], color = INK, fontFamily = MONO, fontSize = 12.sp,
+                        Text(detail[row - sel - 1], color = ink, style = style, fontFamily = MONO, fontSize = 12.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 } else {
@@ -2230,7 +2235,7 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
                     // key(i): đổi ô chọn thì chữ chạy bắt đầu lại từ đầu
                     androidx.compose.runtime.key(i) {
                         Box(Modifier.fillMaxWidth().height(rowH).clickable { onTap(i) }
-                            .background(if (i == sel) INK else LCD).padding(horizontal = 6.dp),
+                            .background(if (i == sel) ink else rowBg).padding(horizontal = 6.dp),
                             contentAlignment = Alignment.CenterStart) {
                             if (i == sel) {
                                 // Ô đang chọn mà tên dài hơn màn hình: chữ chạy ngang cho đọc hết.
@@ -2238,10 +2243,10 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
                                 Text(items[i], Modifier.basicMarquee(
                                         iterations = Int.MAX_VALUE, animationMode = MarqueeAnimationMode.Immediately,
                                         spacing = MarqueeSpacing(32.dp), velocity = 40.dp),
-                                    color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold,
+                                    color = inkOn, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                             } else {
-                                Text(items[i], color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold,
+                                Text(items[i], color = ink, style = style, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
