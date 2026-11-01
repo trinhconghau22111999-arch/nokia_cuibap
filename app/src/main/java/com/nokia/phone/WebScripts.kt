@@ -198,8 +198,8 @@ const val YT_NAV_JS = """
    if(cur && cur!==el){ cur.style.outline=''; cur.style.outlineOffset=''; cur.style.backgroundColor=''; }
    cur=el;
    if(el){
-     el.style.outline='4px solid #ffffff'; el.style.outlineOffset='-4px';
-     el.style.backgroundColor='rgba(255,255,255,0.15)';
+     el.style.outline='4px solid #00e676'; el.style.outlineOffset='-4px';
+     el.style.backgroundColor='rgba(0,230,118,0.15)';
      el.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});
      if(window.scrollX) window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
    }
