@@ -524,7 +524,6 @@ fun Phone() {
     var zwPane by remember { mutableStateOf<ZaloPane?>(null) }
     var fullView by remember { mutableStateOf<android.view.View?>(null) }
     var fullCb by remember { mutableStateOf<android.webkit.WebChromeClient.CustomViewCallback?>(null) }
-    var manualFull by remember { mutableStateOf(false) }   // phím mềm "Full": phóng toàn màn hình
     var webQuery by remember { mutableStateOf("") }      // từ khóa AI chờ đưa vào app con vừa mở
     val webHost = remember {
         object : FullscreenHost {
@@ -539,7 +538,6 @@ fun Phone() {
         val web = (screen == "youtube" || screen == "tv" || screen == "zaloweb") && !inSplit.value
         (ctx as? Activity)?.requestedOrientation =
             if (web) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        if (screen != "youtube" && screen != "tv" && screen != "zaloweb") manualFull = false
     }
     DisposableEffect(Unit) {
         val owner = ctx as? androidx.lifecycle.LifecycleOwner
@@ -1236,9 +1234,9 @@ fun Phone() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (fullView != null) webHost.hideFull() else if (manualFull) manualFull = false else if (ytPane?.back() != true) open("menu")
-            "zaloweb" -> if (fullView != null) webHost.hideFull() else if (manualFull) manualFull = false else if (zwPane?.back() != true) open("menu")
-            "tv" -> if (fullView != null) webHost.hideFull() else if (manualFull) manualFull = false else if (tvPane?.back() != true) open("menu")
+            "youtube" -> if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
+            "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
+            "tv" -> if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
             "alarmEdit" -> screen = "clock"
@@ -1436,7 +1434,6 @@ fun Phone() {
             else lockAt = 0L
             return
         }
-        if ((screen == "youtube" || screen == "tv" || screen == "zaloweb") && k == "SOFTL") { manualFull = !manualFull; return }
         if ((screen == "youtube" || screen == "tv" || screen == "zaloweb") && (k == "UP" || k == "DOWN" || k == "LEFT" || k == "RIGHT" || k == "OK")) {
             val code = when (k) {
                 "UP" -> android.view.KeyEvent.KEYCODE_DPAD_UP; "DOWN" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
@@ -1671,7 +1668,6 @@ fun Phone() {
         "calllog" -> "Gọi"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
-        "youtube", "tv", "zaloweb" -> ""   // ẩn chữ "Full" (phím mềm trái vẫn bấm được để phóng toàn màn hình)
         else -> ""
     }
     val right = when (screen) {
@@ -1727,9 +1723,9 @@ fun Phone() {
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> Lines(MENU.map { it.first }, sel, tapItem, scroll)
-                            "youtube" -> WebArea(ytPane?.view, fullView, manualFull) { back() }
-                            "zaloweb" -> WebArea(zwPane?.view, fullView, manualFull) { back() }
-                            "tv" -> WebArea(tvPane?.view, fullView, manualFull) { back() }
+                            "youtube" -> WebArea(ytPane?.view, fullView) { back() }
+                            "zaloweb" -> WebArea(zwPane?.view, fullView) { back() }
+                            "tv" -> WebArea(tvPane?.view, fullView) { back() }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
                             "clock" -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(now, Modifier.padding(top = 16.dp), color = INK, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)

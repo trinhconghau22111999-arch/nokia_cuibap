@@ -63,12 +63,12 @@ private fun FullDialog(content: View, onClose: () -> Unit) {
 /**
  * Vùng hiển thị của app con TV / YouTube.
  * - Bình thường: nằm trong ô LCD phía trên.
- * - Full màn hình khi: xoay ngang máy, bấm phím mềm "Full", hoặc bấm nút phóng to của trang (video toàn màn hình).
+ * - Full màn hình khi: xoay ngang máy hoặc bấm nút phóng to của trang (video toàn màn hình).
  */
 @Composable
-fun WebArea(pane: View?, custom: View?, manualFull: Boolean, onClose: () -> Unit) {
+fun WebArea(pane: View?, custom: View?, onClose: () -> Unit) {
     val landscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val full: View? = custom ?: if (landscape || manualFull) pane else null
+    val full: View? = custom ?: if (landscape) pane else null
     Box(Modifier.fillMaxSize().clipToBounds()) {
         if (pane != null && full !== pane) HostView(pane)
     }
