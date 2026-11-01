@@ -177,7 +177,7 @@ const val YT_NAV_JS = """
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';
-   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}';
+   stA.textContent='ytm-autonav-bar,ytm-autonav-renderer,ytm-autonav-endscreen,.ytp-autonav-endscreen,ytd-compact-autoplay-renderer,[class*="autonav-bar"],[class*="autoplay-bar"],ytm-pivot-bar-renderer,ytm-pivot-bar-item-renderer,[class*="pivot-bar"]{display:none!important}#player,#player-container,ytm-player,.player-container,.html5-video-player,.html5-video-container,.html5-main-video{width:100vw!important;height:100vh!important;max-height:100vh!important}video{width:100%!important;height:100%!important;object-fit:contain!important}';
    (document.head||document.documentElement).appendChild(stA);
  }
  var ITEM='ytm-compact-video-renderer,ytm-video-with-context-renderer,ytm-rich-item-renderer,ytm-media-item,ytm-compact-autoplay-renderer,ytd-compact-video-renderer,ytd-video-renderer,ytd-rich-item-renderer,ytm-playlist-panel-video-renderer,ytd-playlist-panel-video-renderer,ytm-rich-grid-media,ytd-grid-video-renderer';
