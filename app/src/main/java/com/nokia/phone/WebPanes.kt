@@ -203,6 +203,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(YT_NAV_JS, null)
                     view?.evaluateJavascript(YT_QUALITY_JS, null)
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
+                    setTouchLock(touchLock)
                     view?.evaluateJavascript("window.__wbLock=$touchLock", null)
                 }
             }
@@ -239,7 +240,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     /** on = true khi máy để dọc. Cuộn trang vẫn được; chỉ chặn chạm vào like, bình luận, kênh, nút... */
     fun setTouchLock(on: Boolean) {
         touchLock = on
-        if (!destroyedYt) web.evaluateJavascript("window.__wbLock=$on", null)
+        if (!destroyedYt) web.evaluateJavascript("window.__wbLock=$on;window.__wbLand=${!on};window.__wbApplyLand&&window.__wbApplyLand()", null)
     }
 
     // ---- Xoay ngang = tự bấm nút phóng to của YouTube, video vẫn tiếp tục phát; xoay dọc = thu nhỏ lại ----
