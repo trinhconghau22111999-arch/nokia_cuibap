@@ -79,7 +79,7 @@ class RemotePanel(
 
     private fun caption(t: String, size: Float = 9f) = TextView(context).apply {
         text = t; textSize = size; setTextColor(RemoteTheme.ink); letterSpacing = 0.05f
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); gravity = Gravity.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD); gravity = Gravity.CENTER   // chữ nhãn dưới icon / thanh trượt: đậm
         setLineSpacing(0f, 0.95f)
     }
 
@@ -191,7 +191,7 @@ class RemotePanel(
             text = "$initial"; textSize = 11.5f; setTextColor(RemoteTheme.ink); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
-        addView(value, LayoutParams(-2, dp(16)))
+        addView(value, LayoutParams(-2, dp(13)))
         var last = 0L
         val sl = VSlider(context, initial) { p, fromUser, done ->
             value.text = "$p"
@@ -203,7 +203,7 @@ class RemotePanel(
                 }
             }
         }
-        addView(sl, LayoutParams(-1, 0, 1f).also { it.topMargin = dp(2); it.bottomMargin = dp(2) })
+        addView(sl, LayoutParams(-1, 0, 1f).also { it.topMargin = -dp(2); it.bottomMargin = dp(2) })   // kéo thanh lên sát con số
         // Nhãn 1 dòng, cao cố định -> chữ 2 thanh luôn cùng hàng và 2 thanh dài bằng nhau
         val cap = caption(label, 8f).apply { isSingleLine = true; ellipsize = null; includeFontPadding = false }
         addView(cap, LayoutParams(-2, dp(14)))
@@ -295,11 +295,12 @@ class VSlider(
     private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
 
     private fun pad() = 14f * d
+    private fun padTop() = 12f * d      // đầu trên ngắn hơn một chút để con số nằm sát thanh
     private fun trackW() = 16f * d
 
     override fun onDraw(c: android.graphics.Canvas) {
         val cx = width / 2f
-        val top = pad(); val bot = height - pad()
+        val top = padTop(); val bot = height - pad()
         val tw = trackW()
         val rect = android.graphics.RectF(cx - tw / 2, top, cx + tw / 2, bot)
         p.style = android.graphics.Paint.Style.FILL; p.color = RemoteTheme.track
@@ -319,7 +320,7 @@ class VSlider(
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
-                val top = pad(); val bot = height - pad()
+                val top = padTop(); val bot = height - pad()
                 val v = (((bot - e.y) / (bot - top)) * 100f).toInt().coerceIn(0, 100)
                 val up = e.actionMasked == MotionEvent.ACTION_UP
                 if (v != value || up) { value = v; invalidate(); onChange(v, true, up) }
