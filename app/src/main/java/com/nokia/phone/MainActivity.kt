@@ -1561,7 +1561,7 @@ fun Phone() {
             }
             when (k) {
                 "UP", "DOWN", "LEFT", "RIGHT", "OK" -> { remotePane?.key(k); return }   // phím cứng ▲▼◀▶ OK = bấm phím trên TV
-                "SOFTL" -> { remoteListen(); return }
+                "SOFTL" -> { open("menu"); return }   // phím Menu = về menu (nghe giọng nói đã có nút GIỌNG NÓI trên màn hình)
             }
         }
         if (screen == "youtube" || screen == "tv") {
