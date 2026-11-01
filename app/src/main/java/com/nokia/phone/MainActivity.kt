@@ -1671,7 +1671,7 @@ fun Phone() {
         "calllog" -> "Gọi"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
-        "youtube", "tv", "zaloweb" -> "Full"
+        "youtube", "tv", "zaloweb" -> ""   // ẩn chữ "Full" (phím mềm trái vẫn bấm được để phóng toàn màn hình)
         else -> ""
     }
     val right = when (screen) {
