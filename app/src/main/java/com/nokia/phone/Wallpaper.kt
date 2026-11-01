@@ -48,6 +48,17 @@ object Wallpaper {
         if (f.exists()) BitmapFactory.decodeFile(f.path) else null
     } catch (_: Throwable) { null }
 
+    /** Ảnh nền sáng (độ sáng trung bình cao) -> chữ nên màu đen; ảnh tối -> chữ trắng. */
+    fun isLight(b: Bitmap): Boolean = try {
+        val s = Bitmap.createScaledBitmap(b, 24, 24, true)
+        var sum = 0.0
+        for (y in 0 until 24) for (x in 0 until 24) {
+            val c = s.getPixel(x, y)
+            sum += 0.299 * android.graphics.Color.red(c) + 0.587 * android.graphics.Color.green(c) + 0.114 * android.graphics.Color.blue(c)
+        }
+        sum / (24 * 24) > 140.0
+    } catch (_: Throwable) { false }
+
     /** Đọc ảnh từ uri (thu nhỏ, xoay đúng chiều) để xem thử; lỗi thì trả null. */
     fun decode(ctx: Context, u: Uri, maxDim: Int = 1600): Bitmap? = try {
         val cr = ctx.contentResolver
@@ -98,7 +109,7 @@ fun WallPreview(
     bmp: Bitmap, fx: Float, fy: Float,
     onSize: (Float, Float) -> Unit, onPan: (Float, Float) -> Unit,
     onSet: () -> Unit, onCancel: () -> Unit,
-    time: String = "", date: String = "", home: Boolean = false
+    time: String = "", date: String = "", home: Boolean = false, light: Boolean = false
 ) {
     val img = remember(bmp) { bmp.asImageBitmap() }
     val curFx by rememberUpdatedState(fx)
@@ -131,7 +142,7 @@ fun WallPreview(
             )
         }
         Box(Modifier.fillMaxSize().border(3.dp, INK))
-        LockTexts(time, date, false, true, hint = !home)    // hiện đồng hồ + dòng hướng dẫn mở khóa như màn hình khóa thật
+        LockTexts(time, date, false, true, hint = !home, light = light)    // hiện đồng hồ + dòng hướng dẫn mở khóa như màn hình khóa thật
         // Điều khiển xem thử: nằm phía trên dòng hướng dẫn mở khóa, chỉ có nền mờ sau chữ
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 56.dp, start = 6.dp, end = 6.dp)) {
             Text("Kéo ảnh hoặc bấm ▲▼◀▶ để di chuyển", Modifier.align(Alignment.CenterHorizontally)

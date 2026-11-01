@@ -354,11 +354,12 @@ fun isBtOn(ctx: Context): Boolean = try {
 
 /** Đồng hồ, ngày và dòng hướng dẫn mở khóa (dùng chung cho màn hình khóa và khung xem thử hình nền). */
 @Composable
-fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true) {
+fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true, light: Boolean = false) {
     // Có ảnh nền do người dùng chọn -> chữ trắng (kèm bóng mờ nhẹ cho dễ đọc); nền mặc định -> chữ đen như cũ
-    val c = if (onPhoto) Color.White else INK
+    // light = ảnh nền sáng -> chữ đen (bóng trắng mờ); ảnh tối -> chữ trắng (bóng đen mờ)
+    val c = if (onPhoto && !light) Color.White else INK
     val sh = if (onPhoto) androidx.compose.ui.text.TextStyle(
-        shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
+        shadow = androidx.compose.ui.graphics.Shadow((if (light) Color.White else Color.Black).copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(time, color = c, style = sh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
         Text(date, color = c, style = sh, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 2, textAlign = TextAlign.Center)
@@ -420,6 +421,7 @@ fun Phone() {
     var wallFw by remember { mutableStateOf(0f) }                         // kích thước khung xem thử (px)
     var wallFh by remember { mutableStateOf(0f) }
     var wallBmp by remember { mutableStateOf<ImageBitmap?>(null) }       // hình nền màn hình khóa do người dùng chọn
+    var homeLight by remember { mutableStateOf(false) }                  // ảnh nền màn hình chính sáng (true) hay tối (false)
     var homeBmp by remember { mutableStateOf<ImageBitmap?>(null) }       // hình nền màn hình chính do người dùng chọn
     var wallTarget by remember { mutableStateOf("lock") }                 // ảnh đang chọn dành cho: "lock" (khóa) hoặc "home" (chính)
     var infoTick by remember { mutableIntStateOf(0) }      // làm tươi số liệu (wifi, pin, SIM...) mỗi giây
@@ -439,7 +441,9 @@ fun Phone() {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         wallBmp = withContext(Dispatchers.IO) { Wallpaper.load(ctx) }?.asImageBitmap()
-        homeBmp = withContext(Dispatchers.IO) { Wallpaper.load(ctx, "home") }?.asImageBitmap()
+        val hb = withContext(Dispatchers.IO) { Wallpaper.load(ctx, "home") }
+        homeLight = hb?.let { withContext(Dispatchers.IO) { Wallpaper.isLight(it) } } ?: false
+        homeBmp = hb?.asImageBitmap()
     }
     val wallReq = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { u ->
         if (u != null) scope.launch {
@@ -455,7 +459,7 @@ fun Phone() {
             val out = withContext(Dispatchers.IO) { Wallpaper.saveCrop(ctx, b, x, y, w, h, tgt) }
             wallPick = null
             if (out != null) {
-                if (tgt == "home") { homeBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình chính", Toast.LENGTH_SHORT).show() }
+                if (tgt == "home") { homeLight = withContext(Dispatchers.IO) { Wallpaper.isLight(out) }; homeBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình chính", Toast.LENGTH_SHORT).show() }
                 else { wallBmp = out.asImageBitmap(); Toast.makeText(ctx, "Đã đặt hình nền màn hình khóa", Toast.LENGTH_SHORT).show() }
             }
             else Toast.makeText(ctx, "Không lưu được ảnh", Toast.LENGTH_SHORT).show()
@@ -1877,9 +1881,9 @@ fun Phone() {
                 }
         ) {
             val homePhoto = screen == "home" && homeBmp != null     // màn hình chính có ảnh nền -> chữ trắng + bóng mờ
-            val homeInk = if (homePhoto) Color.White else INK
+            val homeInk = if (homePhoto && !homeLight) Color.White else INK     // ảnh sáng -> chữ đen, ảnh tối -> chữ trắng
             val homeSh = if (homePhoto) androidx.compose.ui.text.TextStyle(
-                shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
+                shadow = androidx.compose.ui.graphics.Shadow((if (homeLight) Color.White else Color.Black).copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
             // Màn hình LCD nhỏ (phần duy nhất thay đổi)
             Box(Modifier.fillMaxWidth().weight(0.72f).background(LCD), contentAlignment = Alignment.Center) {
             LcdFontScale {
@@ -2168,11 +2172,12 @@ fun Phone() {
                 }
                 if (locked) LockScreen(now.take(5), dateNow(), lockAt != 0L, wallBmp)
                 wallPick?.let { pb ->
+                    val pbLight = remember(pb) { Wallpaper.isLight(pb) }
                     if (!locked) WallPreview(pb, wallFx, wallFy,
                         onSize = { w, h -> wallFw = w; wallFh = h },
                         onPan = { x, y -> wallFx = x; wallFy = y },
                         onSet = { press("OK") }, onCancel = { press("SOFTR") },
-                        time = now.take(5), date = dateNow(), home = wallTarget == "home")
+                        time = now.take(5), date = dateNow(), home = wallTarget == "home", light = wallTarget == "home" && pbLight)
                 }
             }
             }
