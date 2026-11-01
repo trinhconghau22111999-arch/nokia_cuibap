@@ -1255,9 +1255,9 @@ fun Phone() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (ytPane?.back() != true) open("menu")
+            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (ytPane?.back() != true) open("menu")
             "zaloweb" -> if (fullView != null) webHost.hideFull() else if (zwPane?.back() != true) open("menu")
-            "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (tvPane?.back() != true) open("menu")
+            "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
             "alarmEdit" -> screen = "clock"
