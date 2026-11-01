@@ -560,7 +560,7 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         val w = player ?: return
         player = null
         try {
-            w.evaluateJavascript("document.querySelectorAll('video,audio').forEach(function(v){try{v.pause()}catch(e){}})", null)
+            w.evaluateJavascript("document.querySelectorAll('video,audio').forEach(function(v){try{v.pause()}catch(e){}});try{clearInterval(window.__tvSkipIv)}catch(e){}", null)
             w.onPause()
             (w.parent as? ViewGroup)?.removeView(w)       // gỡ khỏi màn hình ngay để menu hiện tức thì
         } catch (e: Exception) { }

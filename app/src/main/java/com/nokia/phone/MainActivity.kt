@@ -574,7 +574,22 @@ fun Phone() {
     val focus = remember { FocusRequester() }
     val haptic = LocalHapticFeedback.current
 
-    LaunchedEffect(Unit) { focus.requestFocus(); while (true) { now = timeNow(); delay(1000) } }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    // Đồng hồ chỉ chạy từng giây khi app đang hiển thị (màn hình bật, app ở trên cùng); tắt màn hình hoặc rời app là ngừng
+    var uiResumed by remember { mutableStateOf(true) }
+    val lifeOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifeOwner) {
+        val o = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) uiResumed = true
+            else if (e == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) uiResumed = false
+        }
+        lifeOwner.lifecycle.addObserver(o)
+        onDispose { lifeOwner.lifecycle.removeObserver(o) }
+    }
+    LaunchedEffect(uiResumed) {
+        if (!uiResumed) return@LaunchedEffect
+        while (true) { now = timeNow(); delay(1000) }
+    }
     // Dọn dữ liệu theo màn hình: rời nhóm màn hình nào thì xóa dữ liệu của nhóm đó, không nhớ màn cũ
     var prevScreen by remember { mutableStateOf(screen) }
     LaunchedEffect(screen) {

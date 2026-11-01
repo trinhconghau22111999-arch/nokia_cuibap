@@ -145,7 +145,14 @@ const val TV_FULL_JS = """
       if (again) { try { again.click(); } catch(e){} }
     }, 500);
   }
-  if (!window.__tvSkipInt) { window.__tvSkipInt = true; setInterval(trySkip, 300); }
+  // Chỉ quét quảng cáo trong 5 giây đầu sau khi mở kênh; hết 5 giây thì ngừng hẳn
+  if (!window.__tvSkipIv) {
+    var skipUntil = Date.now() + 5000;
+    window.__tvSkipIv = setInterval(function(){
+      if (Date.now() > skipUntil) { clearInterval(window.__tvSkipIv); return; }
+      trySkip();
+    }, 300);
+  }
   function go(){
     var v = document.querySelector('video');
     if (v) { try { v.muted = false; var p = v.play(); if (p && p.catch) p.catch(function(){}); } catch(e){} }
