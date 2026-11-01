@@ -205,6 +205,9 @@ const val YT_NAV_JS = """
    document.documentElement.classList.toggle('__wbPort',port); document.documentElement.classList.toggle('__wbCover',port&&cover);
  }catch(e){} };
  setInterval(window.__wbApplyLand,800);
+ // Lưới an toàn: nếu trang vẫn bị chuyển sang trang kênh tác giả (do cách điều hướng nội bộ của YouTube) thì tự quay lại ngay
+ var lastChBack=0;
+ setInterval(function(){ try{ if(/^\/(@|channel\/|c\/|user\/)/.test(location.pathname) && history.length>1 && Date.now()-lastChBack>1500){ lastChBack=Date.now(); history.back(); } }catch(e){} },300);
  // Ẩn thanh "Tiếp theo / Danh sách kết hợp" tự phát ở cuối video
  if(!document.getElementById('__wbNoAutonav')){
    var stA=document.createElement('style'); stA.id='__wbNoAutonav';

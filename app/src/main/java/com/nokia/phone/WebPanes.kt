@@ -244,6 +244,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
   return false}
  addEventListener('touchend',function(e){if(!mv&&isCh(e.target))block(e)},{capture:true,passive:false});
  addEventListener('click',function(e){if(isCh(e.target))block(e)},true);
+ ['pointerup','mouseup','mousedown','pointerdown'].forEach(function(n){addEventListener(n,function(e){if(isCh(e.target))block(e)},true)});
 })();
 """.trimIndent()
 
