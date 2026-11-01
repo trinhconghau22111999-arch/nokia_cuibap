@@ -467,6 +467,7 @@ fun Phone() {
     var cFrom by remember { mutableStateOf("new") }
     var cPick by remember { mutableIntStateOf(-1) }
     val entry = remember { TextEntry() }
+    val webEntry = remember { TextEntry().also { it.mode = 0 } }   // bộ gõ cho Zalo Web / YouTube / TV (mặc định chữ thường)
     val calc = remember { CalcState() }
     val cam = remember { CamHolder() }
     var camFront by remember { mutableStateOf(false) }
@@ -577,7 +578,7 @@ fun Phone() {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
             "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull() }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull() }
-            "zaloweb" -> { zwPane?.destroy(); zwPane = null; webHost.hideFull() }
+            "zaloweb" -> { zwPane?.destroy(); zwPane = null; webHost.hideFull(); webEntry.reset(); webEntry.mode = 0 }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
             "sms" -> {
                 smsAll = emptyList(); threads = emptyList(); threadMsgs = emptyList()
@@ -1441,6 +1442,17 @@ fun Phone() {
             else lockAt = 0L
             return
         }
+        if (screen == "youtube" || screen == "tv" || screen == "zaloweb") {
+            // Gõ chữ vào ô nhập của trang bằng phím số của app: 2-9 bấm lặp = chọn chữ, * = dấu tiếng Việt,
+            // # = đổi abc/Abc/ABC/123, phím mềm trái = Xóa, phím gọi (xanh) = Enter
+            val web = when (screen) { "youtube" -> ytPane?.view; "tv" -> tvPane?.view; else -> zwPane?.view }
+            when {
+                k == "SOFTL" -> { WebTyping.type(web, webEntry, "DEL"); return }
+                k == "CALL" -> { WebTyping.enter(web); return }
+                k == "#" -> { webEntry.key("#", SystemClock.uptimeMillis()); Toast.makeText(ctx, MODES[webEntry.mode], Toast.LENGTH_SHORT).show(); return }
+                k.length == 1 && (k[0].isDigit() || k == "*") -> { WebTyping.type(web, webEntry, k); return }
+            }
+        }
         if ((screen == "youtube" || screen == "tv" || screen == "zaloweb") && (k == "UP" || k == "DOWN" || k == "LEFT" || k == "RIGHT" || k == "OK")) {
             val code = when (k) {
                 "UP" -> android.view.KeyEvent.KEYCODE_DPAD_UP; "DOWN" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
@@ -1673,6 +1685,7 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
+        "youtube", "tv", "zaloweb" -> "Xóa"   // xóa 1 ký tự đang gõ trong ô nhập của trang
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
