@@ -55,4 +55,10 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$camerax")
     implementation("androidx.camera:camera-view:$camerax")
     implementation("androidx.camera:camera-video:$camerax")
+
+    // App con "Điều khiển TV": tín hiệu qua Firebase Realtime Database + kênh dữ liệu WebRTC tới app TV
+    // (cấu hình Firebase nạp thẳng trong code - RemoteLink.kt - nên không cần google-services.json)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-database")
+    implementation("io.github.webrtc-sdk:android:125.6422.06.1")
 }

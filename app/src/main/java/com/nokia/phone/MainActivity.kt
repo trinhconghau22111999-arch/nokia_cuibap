@@ -98,6 +98,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.nokia.phone.tvremote.RemoteLink
+import com.nokia.phone.tvremote.RemotePane
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.rememberScrollState
@@ -113,7 +115,7 @@ val KEYTXT = Color(0xFF1B2230)
 val MONO = FontFamily.Monospace
 
 val MENU = listOf(
-    "Nhật ký" to "calllog", "Danh bạ" to "contacts", "TV" to "tv", "YouTube" to "youtube", "Tin nhắn" to "messages",
+    "Nhật ký" to "calllog", "Danh bạ" to "contacts", "TV" to "tv", "YouTube" to "youtube", "Điều khiển TV" to "remote", "Tin nhắn" to "messages",
     "Máy ảnh" to "camera", "Thư viện" to "gallery", "Nhạc" to "music",
     "Đồng hồ" to "clock", "Lịch" to "calendar", "Ghi âm" to "recorder",
     "Máy tính" to "calc", "Rắn săn mồi" to "snake",
@@ -528,6 +530,8 @@ fun Phone() {
     // ---- App con YouTube / TV (tách từ repo TV): WebView nhúng ngay trong ô LCD phía trên
     var ytPane by remember { mutableStateOf<YouTubePane?>(null) }
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
+    var remotePane by remember { mutableStateOf<RemotePane?>(null) }   // app con Điều khiển TV (remote app TV qua WebRTC)
+    var remoteMicTick by remember { mutableIntStateOf(0) }            // nút giọng nói trên remote bấm -> tăng để mở micro
     var fullView by remember { mutableStateOf<android.view.View?>(null) }
     var fullCb by remember { mutableStateOf<android.webkit.WebChromeClient.CustomViewCallback?>(null) }
     var webQuery by remember { mutableStateOf("") }      // từ khóa AI chờ đưa vào app con vừa mở
@@ -612,6 +616,7 @@ fun Phone() {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
             "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
+            "remote" -> { remotePane?.destroy(); remotePane = null; if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
             "sms" -> {
                 smsAll = emptyList(); threads = emptyList(); threadMsgs = emptyList()
@@ -1238,6 +1243,11 @@ fun Phone() {
                     }
                 }
             }
+            "remote" -> {
+                remotePane?.destroy(); remotePane = null
+                val a = ctx as? Activity
+                if (a != null) remotePane = RemotePane(a) { remoteMicTick++ }
+            }
             "ai" -> { aiState = 0; aiHeard = ""; aiMsg = ""; aiOpenedAt = SystemClock.uptimeMillis(); aiStartTick++ }
             "snake" -> snake.reset()
             "apps" -> loadApps()
@@ -1456,6 +1466,29 @@ fun Phone() {
             )
         }
     }
+    /** Nút giọng nói trong Điều khiển TV: nghe rồi gửi nguyên câu nói sang TV ("mở TV", "mở YouTube", tên video / kênh...). */
+    fun remoteListen() {
+        if (!voice.available()) { Toast.makeText(ctx, "Máy chưa có dịch vụ nhận dạng giọng nói", Toast.LENGTH_LONG).show(); return }
+        need(listOf(Manifest.permission.RECORD_AUDIO)) {
+            ytVoice = 1; ytHeard = ""; aiLevel = 0f
+            voice.start(
+                onPartial = { ytHeard = it },
+                onLevel = { aiLevel = it },
+                onResult = { list ->
+                    if (ytVoice == 1) {
+                        ytVoice = 0
+                        val q = list.firstOrNull { it.isNotBlank() }
+                        if (q == null) Toast.makeText(ctx, "Không nghe rõ, bấm AI để thử lại", Toast.LENGTH_SHORT).show()
+                        else remotePane?.sendVoice(q)
+                    }
+                },
+                onError = { code -> if (ytVoice == 1) { ytVoice = 0; Toast.makeText(ctx, aiErrorText(code), Toast.LENGTH_LONG).show() } }
+            )
+        }
+    }
+    LaunchedEffect(remoteMicTick) { if (remoteMicTick > 0 && screen == "remote") remoteListen() }
+    // Thoát hẳn launcher: ngắt luôn kết nối tới TV
+    DisposableEffect(Unit) { onDispose { RemoteLink.stop(ctx) } }
     fun aiConfirm() {
         val p = aiCands.getOrNull(aiPick) ?: return
         when (aiKind) {
@@ -1518,6 +1551,18 @@ fun Phone() {
             else if (k == "*" && lockAt != 0L && t - lockAt < 4000) { locked = false; lockAt = 0L }
             else lockAt = 0L
             return
+        }
+        if (screen == "remote") {
+            if (ytVoice == 1) {   // đang nghe lệnh giọng nói cho TV: OK / phím mềm trái = nói xong; Hủy / Về = bỏ
+                if (k == "OK" || k == "SOFTL") voice.stop()
+                else if (k == "SOFTR") { voice.cancel(); ytVoice = 0 }
+                else if (k == "END") { voice.cancel(); ytVoice = 0; open("home") }
+                return
+            }
+            when (k) {
+                "UP", "DOWN", "LEFT", "RIGHT", "OK" -> { remotePane?.key(k); return }   // phím cứng ▲▼◀▶ OK = bấm phím trên TV
+                "SOFTL" -> { remoteListen(); return }
+            }
         }
         if (screen == "youtube" || screen == "tv") {
             if (ytVoice == 1) {   // đang nghe: OK / phím mềm trái = nói xong; phím khác bỏ qua
@@ -1776,7 +1821,7 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"
-        "youtube", "tv" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "youtube", "tv", "remote" -> if (ytVoice == 1) "Xong" else "AI"   // nút AI: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
@@ -1821,8 +1866,8 @@ fun Phone() {
                 Column(Modifier.fillMaxSize().background(LCD).statusBarsPadding()) {
                     Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { lcdRect = it.boundsInWindow() }
                         // Camera: khung xem trước phủ kín vùng LCD, không chừa rìa hai bên
-                        .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv") 0.dp else 6.dp,
-                            vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv") 0.dp else 2.dp)) {
+                        .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 6.dp,
+                            vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1841,6 +1886,10 @@ fun Phone() {
                             "tv" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (tvLandOverlay) null else tvPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói tên kênh tivi")
+                            }
+                            "remote" -> Box(Modifier.fillMaxSize()) {
+                                remotePane?.let { HostView(it.view) }
+                                if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói lệnh cho TV")
                             }
                             "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
                             "clock" -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
