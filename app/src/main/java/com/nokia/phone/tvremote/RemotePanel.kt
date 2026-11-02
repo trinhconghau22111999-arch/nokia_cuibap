@@ -155,6 +155,7 @@ class RemotePanel(
 
         val side = LinearLayout(context).apply { orientation = VERTICAL }
         val btnBack = textButton("LÙI", 13f) { send(JSONObject().put("action", "back")) }
+        btnBack.background = box(0xFFFFD600.toInt(), 12, 2.2f)   // nút LÙI nền vàng
         side.addView(btnBack, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val q = LinearLayout(context).apply { orientation = HORIZONTAL }
         btnQ360 = qualityButton(360); btnQ480 = qualityButton(480); btnQ720 = qualityButton(720)
