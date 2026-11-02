@@ -265,27 +265,6 @@ const val YT_NAV_JS = """
    if(n>=list.length){ window.scrollBy(0, innerHeight*0.6); return true; }
    mark(list[n]); return true;
  };
- // LÊN / XUỐNG: sang video ở hàng trên / hàng dưới (tìm theo vị trí trên màn hình, ưu tiên video thẳng cột).
- // Không có video ở hàng đó thì cuộn trang lên / xuống.
- window.__wbVert=function(d){
-   var list=items(); if(!list.length) return false;
-   if(cur && !cur.isConnected) cur=null;
-   var idx=cur?list.indexOf(cur):-1;
-   if(idx<0){ return window.__wbNav(0); }
-   var c=cur.getBoundingClientRect(), cx=c.left+c.width/2, cy=c.top+c.height/2;
-   var minDy=Math.max(4, c.height*0.5), best=-1, bestS=Infinity;
-   for(var i=0;i<list.length;i++){
-     if(i===idx) continue;
-     var r=list[i].getBoundingClientRect();
-     var x=r.left+r.width/2, y=r.top+r.height/2;
-     var dy=(y-cy)*d;
-     if(dy<minDy) continue;
-     var s=dy+Math.abs(x-cx)*2;
-     if(s<bestS){ bestS=s; best=i; }
-   }
-   if(best<0){ window.scrollBy(0, d*innerHeight*0.6); return true; }
-   mark(list[best]); return true;
- };
  window.__wbOk=function(){
    if(!cur || !cur.isConnected) return false;
    var a=cur.tagName==='A'?cur:cur.querySelector('a[href*="/watch"],a[href*="/shorts/"]');
