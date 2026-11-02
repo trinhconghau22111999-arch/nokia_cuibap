@@ -317,8 +317,10 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     fun onKey(k: String): Boolean {
         if (destroyedYt) return false
         val js = when (k) {
-            "UP" -> "window.__wbNav&&window.__wbNav(-1)"
-            "DOWN" -> "window.__wbNav&&window.__wbNav(1)"
+            "UP" -> "window.__wbVert&&window.__wbVert(-1)"
+            "DOWN" -> "window.__wbVert&&window.__wbVert(1)"
+            "LEFT" -> "window.__wbNav&&window.__wbNav(-1)"
+            "RIGHT" -> "window.__wbNav&&window.__wbNav(1)"
             "OK" -> "window.__wbOk&&window.__wbOk()"
             else -> return false
         }
